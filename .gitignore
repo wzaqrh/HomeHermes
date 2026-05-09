@@ -1,0 +1,180 @@
+# ============================================================
+# ~/.hermes Git tracking policy
+# Default: ignore everything, then explicitly allow safe files.
+# ============================================================
+
+*
+
+# ------------------------------------------------------------
+# Git
+# ------------------------------------------------------------
+!.gitignore
+
+# ------------------------------------------------------------
+# Core Hermes config / identity / instructions
+# ------------------------------------------------------------
+!config.yaml
+!SOUL.md
+!AGENTS.md
+!README.md
+!NOTES.md
+!CHANGELOG.md
+!TROUBLESHOOTING.md
+
+# ------------------------------------------------------------
+# Hermes skills
+# Hermes docs mention $HERMES_HOME/skills/ for installed skills.
+# ------------------------------------------------------------
+!skills/
+!skills/**
+
+# ------------------------------------------------------------
+# Optional local plugins
+# Track only plugins you author yourself under plugins/local/.
+# Do NOT track plugin caches or installed/generated plugin state.
+# ------------------------------------------------------------
+!plugins/
+!plugins/local/
+!plugins/local/**
+
+# ------------------------------------------------------------
+# Optional cron jobs
+# Track this only if you want scheduled jobs versioned.
+# Be careful: cron jobs may contain personal data or commands.
+# ------------------------------------------------------------
+!cron/
+!cron/**
+
+# ------------------------------------------------------------
+# Optional personal docs / manifests
+# ------------------------------------------------------------
+!installed-skills.md
+!skills.lock
+!plugins.lock
+!manifest.yaml
+!manifest.yml
+!manifest.toml
+
+# ------------------------------------------------------------
+# Optional helper scripts
+# ------------------------------------------------------------
+!scripts/
+!scripts/**
+!bin/
+!bin/**
+!tools/
+!tools/**
+
+# ------------------------------------------------------------
+# Profiles
+# Track profile configs/identity/skills, but never profile secrets/state.
+# Hermes profiles have their own config, .env, memories, sessions, skills, etc.
+# ------------------------------------------------------------
+!profiles/
+!profiles/*/
+!profiles/*/config.yaml
+!profiles/*/SOUL.md
+!profiles/*/AGENTS.md
+!profiles/*/skills/
+!profiles/*/skills/**
+!profiles/*/plugins/
+!profiles/*/plugins/local/
+!profiles/*/plugins/local/**
+!profiles/*/cron/
+!profiles/*/cron/**
+
+# ------------------------------------------------------------
+# Never track secrets / credentials
+# ------------------------------------------------------------
+.env
+.env.*
+auth.json
+credentials.json
+tokens.json
+secrets.json
+
+**/.env
+**/.env.*
+**/auth.json
+**/credentials.json
+**/tokens.json
+**/secrets.json
+
+**/*secret*
+**/*token*
+**/*credential*
+**/*password*
+
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.kdbx
+
+# ------------------------------------------------------------
+# Never track Hermes runtime state
+# ------------------------------------------------------------
+memories/
+sessions/
+logs/
+log/
+cache/
+tmp/
+temp/
+state/
+state*
+*.db
+*.sqlite
+*.sqlite3
+
+**/memories/
+**/sessions/
+**/logs/
+**/log/
+**/cache/
+**/tmp/
+**/temp/
+**/state/
+**/state*
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# ------------------------------------------------------------
+# Plugin/generated caches
+# ------------------------------------------------------------
+plugins/cache/
+plugins/**/cache/
+plugins/**/node_modules/
+plugins/**/__pycache__/
+
+# ------------------------------------------------------------
+# Generated files / dependency dirs
+# ------------------------------------------------------------
+node_modules/
+**/node_modules/
+
+.venv/
+venv/
+**/.venv/
+**/venv/
+
+__pycache__/
+**/__pycache__/
+
+*.pyc
+*.pyo
+*.log
+
+# ------------------------------------------------------------
+# OS / editor noise
+# ------------------------------------------------------------
+.DS_Store
+**/.DS_Store
+.vscode/
+.idea/
+**/.vscode/
+**/.idea/
