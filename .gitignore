@@ -86,8 +86,6 @@
 # ------------------------------------------------------------
 # Never track secrets / credentials
 # ------------------------------------------------------------
-.env
-.env.*
 auth.json
 credentials.json
 tokens.json
@@ -117,7 +115,6 @@ secrets.json
 # ------------------------------------------------------------
 # Never track Hermes runtime state
 # ------------------------------------------------------------
-memories/
 sessions/
 logs/
 log/
@@ -130,7 +127,7 @@ state*
 *.sqlite
 *.sqlite3
 
-**/memories/
+#**/memories/
 **/sessions/
 **/logs/
 **/log/
