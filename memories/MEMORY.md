@@ -7,7 +7,7 @@ User preferences and installed skills:
 §
 已创建xiaoai-ha本地技能，用于通过Home Assistant控制小爱音箱，技能路径为~/.hermes/skills/smart-home/xiaoai-ha/，支持播报文本、执行指令、调整音量、唤醒设备、播放音乐等功能，已完成测试验证。
 §
-用户约束：分析600276.SS基本面
+notebooklm-to-brainvault 技能已创建：YouTube/网页 → NotebookLM → brain-vault。生成失败时 fallback 到本地字幕+AI总结 CLI。仅生成阶段有配额限制。
 §
 用户当前网络访问（东方财富/百度）均失败，无法获取实时行情数据，后续查询A股相关股票需提前确认网络状态
 §

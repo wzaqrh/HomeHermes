@@ -20,6 +20,7 @@
 !NOTES.md
 !CHANGELOG.md
 !TROUBLESHOOTING.md
+!.env
 
 # ------------------------------------------------------------
 # Hermes skills
@@ -64,6 +65,8 @@
 !bin/**
 !tools/
 !tools/**
+!memories/
+!memories/*.md
 
 # ------------------------------------------------------------
 # Profiles
@@ -91,8 +94,8 @@ credentials.json
 tokens.json
 secrets.json
 
-**/.env
-**/.env.*
+!.env
+!.env.*
 **/auth.json
 **/credentials.json
 **/tokens.json
@@ -127,7 +130,6 @@ state*
 *.sqlite
 *.sqlite3
 
-#**/memories/
 **/sessions/
 **/logs/
 **/log/

@@ -8,7 +8,7 @@
 §
 用户要求分析600276.SS的基本面，需要写入tradingagents目录或安装Python插件
 §
-新约束：无
+用户使用 Obsidian 管理知识，vault 为 ~/MyDoc/brain-vault。偏好将 YouTube 总结自动保存到 brain-vault。已创建 notebooklm-to-brainvault 技能（NotebookLM + 本地 fallback 双路径）。
 §
 用户偏好：1. 偏好使用CLI工具进行操作和分析；2. 要求所有生成的文件保存到~/feushu目录，禁止写入tradingagents目录；3. 偏好使用tradingagents-runner技能进行股票分析；4. 接受基于公开资料生成的静态分析报告当实时分析超时。用户已配置DeepSeek API密钥在~/.bashrc中，近期需要分析600276.SS和300760.SZ的股票基本面、技术面、新闻面。
 §
