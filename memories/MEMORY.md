@@ -13,9 +13,7 @@ notebooklm-to-brainvault 技能已创建：YouTube/网页 → NotebookLM → bra
 §
 用户Home Assistant中连接的小米小爱音箱设备名为hermes1，对应实体ID：1. 播放控制实体：media_player.xiaomi_l05b_ee79_play_control；2. 文本播报实体：text.xiaomi_l05b_ee79_play_text；3. 指令执行实体：text.xiaomi_l05b_ee79_execute_text_directive；4. 唤醒按钮实体：button.xiaomi_l05b_ee79_wake_up。该设备频繁出现连接不稳定问题，会在`idle`和`unavailable`状态之间反复切换，用户会收到Home Assistant的状态变更告警，且设备通常会自动恢复连接。
 §
-yewtube已安装（media/yewtube技能）：需mpv播放器，通过pipx install yewtube安装，运行命令yt。支持搜索/播放/下载YouTube视频，无需API Key。升级：pipx upgrade yewtube
-§
-小红书爬取注意事项更新：1. 需使用已登录的Chrome远程调试会话（remote_debugging_port=9222）绕过登录弹窗；2. 触发IP风控时需要切换代理网络；3. 递归爬取深度建议不超过5层，避免反爬拦截；4. 正确的帖子链接选择器为.note-item a.cover，提取的href以/explore/或/note/开头
+youtubd 技能已完善：manage.py（add/remove/fetch/new/mark/loadlist/stats）、database.json（分类+历史订阅）、todolist.txt（纯URL供loadlist导入）。已关注：读书-魏知超、经济-宏观洞察/BossEconomics、科技-最佳拍档。用户要求：字幕抓不到就直接失败，不用description替代。
 §
 用户偏好与环境：1. 偏好用curl/bash命令测试MCP工具；2. 已配置Chrome MCP服务器地址为http://127.0.0.1:12306/mcp（streamable http方式）；3. 运行Linux环境，已安装node/npm和全局包mcp-chrome-bridge；4. 已安装Chrome MCP插件并完成基础配置。
 §

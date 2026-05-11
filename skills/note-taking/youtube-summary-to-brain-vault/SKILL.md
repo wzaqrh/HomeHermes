@@ -37,7 +37,9 @@ python3 ~/.hermes/skills/media/youtube-content/scripts/fetch_transcript.py \
 
 - 检查输出是否为空
 - 如果为空，尝试不带 `--language` 参数重试（自动检测可用语言）
-- 如果仍为空，告知用户该视频可能没有字幕
+- 如果仍为空 → **失败退出**，告知用户该视频无字幕，不保存任何内容
+
+> 重要规则：字幕不可用时，**绝不 fallback** 到视频 description 或浏览器提取文本。description 没有完整内容，不值得保存。宁可跳过。
 
 ### Step 3: 生成结构化摘要（AI 总结）
 
@@ -64,7 +66,7 @@ ENDNOTE
 
 ### 字幕不可用时
 - 视频可能禁用了字幕
-- 备选方案：用 `browser` 工具打开视频页，手动提取可见文本
+- 直接失败，不生成任何文件
 
 ### 长视频处理
 - 字幕超过 ~50K 字符时，需要分块处理（每块 ~40K，重叠 2K）
@@ -72,3 +74,17 @@ ENDNOTE
 
 ### NotebookLM 不适用于此工作流
 NotebookLM CLI（google labs-notebooklm）在当前环境中因 Google 地区限制导致 CSRF 认证失败，`qiaomu-anything-to-notebooklm` 依赖该 CLI 所以也无法工作。本技能使用 youtube-transcript-api 直连 YouTube 抓字幕，不依赖 NotebookLM。
+
+## 返回值（Agent 链式调用用）
+
+**成功时：**
+```
+✅ 已保存 → /home/bdwillwin/MyDoc/brain-vault/视频标题_总结.md
+```
+
+**失败时：**
+```
+❌ 无可用字幕，跳过 → https://www.youtube.com/watch?v=VIDEO_ID
+```
+
+Agent 必须检查返回值。失败时不创建任何文件，不写入 database 的 note 字段，不标记 processed。

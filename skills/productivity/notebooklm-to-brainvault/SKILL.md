@@ -48,8 +48,11 @@ Fallback 流程（YouTube 视频）：
 # 1. 通过 youtube-transcript-api 抓取字幕
 python3 <skill_dir>/scripts/fetch_transcript.py <YouTube_URL> --text-only --timestamps
 
-# 2. AI 基于完整字幕生成结构化的 Markdown 总结
+# 2. 如果字幕抓取成功 → AI 基于完整字幕生成结构化的 Markdown 总结
+# 3. 如果字幕不可用 → **失败退出**，不保存任何文件
 ```
+
+> 重要规则：字幕抓取失败时，**绝不 fallback** 到视频 description 或浏览器提取文本。description 没有完整内容，不值得保存。宁可跳过。
 
 ### Step 3: 写入 Brain-Vault
 

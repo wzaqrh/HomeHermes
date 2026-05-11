@@ -10,12 +10,10 @@
 §
 用户使用 Obsidian 管理知识，vault 为 ~/MyDoc/brain-vault。偏好将 YouTube 总结自动保存到 brain-vault。已创建 notebooklm-to-brainvault 技能（NotebookLM + 本地 fallback 双路径）。
 §
-用户偏好：1. 偏好使用CLI工具进行操作和分析；2. 要求所有生成的文件保存到~/feushu目录，禁止写入tradingagents目录；3. 偏好使用tradingagents-runner技能进行股票分析；4. 接受基于公开资料生成的静态分析报告当实时分析超时。用户已配置DeepSeek API密钥在~/.bashrc中，近期需要分析600276.SS和300760.SZ的股票基本面、技术面、新闻面。
-§
 用户偏好与约束：1. 偏好CLI工具，股票分析优先使用tradingagents-runner技能；2. 要求严格匹配分析参数：ticker、analysts、depth、provider、language、date；3. 多次要求分析600276.SS（恒瑞医药）和300760.SZ（迈瑞医疗），偏好浅分析+基本面+技术面维度。
-§
-用户偏好与约束总结：1. 偏好使用tradingagents-runner技能进行股票分析，优先CLI工具；2. 股票分析偏好浅分析维度，覆盖基本面、技术面，可附加新闻面；3. 要求所有分析报告保存至~/feushu目录，禁止写入tradingagents目录；4. 已分析过的股票：600276.SS（恒瑞医药）、NEE（NextEra Energy，NYSE:NEE）；5. 接受基于公开资料生成的静态分析报告，当实时分析超时时可接受静态版本
 §
 用户近期需求：查询无人机产业相关A股股票
 §
 用户需要查询无人机产业相关A股股票，当前浏览器访问东方财富/百度均失败，存在网络超时/页面不存在问题
+§
+用户要求：总结YouTube视频时如果抓不到字幕就直接失败，不能用视频description代替。description没有内容价值，宁可不存。
