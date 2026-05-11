@@ -67,6 +67,8 @@
 !tools/**
 !memories/
 !memories/*.md
+!environments_backup/
+!environments_backup/**
 
 # ------------------------------------------------------------
 # Profiles

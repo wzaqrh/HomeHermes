@@ -13,7 +13,7 @@ notebooklm-to-brainvault 技能已创建：YouTube/网页 → NotebookLM → bra
 §
 用户Home Assistant中连接的小米小爱音箱设备名为hermes1，对应实体ID：1. 播放控制实体：media_player.xiaomi_l05b_ee79_play_control；2. 文本播报实体：text.xiaomi_l05b_ee79_play_text；3. 指令执行实体：text.xiaomi_l05b_ee79_execute_text_directive；4. 唤醒按钮实体：button.xiaomi_l05b_ee79_wake_up。该设备频繁出现连接不稳定问题，会在`idle`和`unavailable`状态之间反复切换，用户会收到Home Assistant的状态变更告警，且设备通常会自动恢复连接。
 §
-小红书爬取注意事项：1. 需要登录才能查看完整内容，scrapling的stealthy-fetch会触发登录弹窗；2. 选择器需要使用正确的class，如.cover或.title的a标签；3. 递归爬取深度为5时需要注意反爬限制，避免频繁请求
+yewtube已安装（media/yewtube技能）：需mpv播放器，通过pipx install yewtube安装，运行命令yt。支持搜索/播放/下载YouTube视频，无需API Key。升级：pipx upgrade yewtube
 §
 小红书爬取注意事项更新：1. 需使用已登录的Chrome远程调试会话（remote_debugging_port=9222）绕过登录弹窗；2. 触发IP风控时需要切换代理网络；3. 递归爬取深度建议不超过5层，避免反爬拦截；4. 正确的帖子链接选择器为.note-item a.cover，提取的href以/explore/或/note/开头
 §
