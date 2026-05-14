@@ -501,6 +501,17 @@ for g in json.load(sys.stdin):
     print(f\"  {g['id']}  {g['description'] or '(no desc)':40}  {files}\")"
 ```
 
+## 11. Project Discovery & Cataloging Workflow
+
+When the user asks to "find GitHub projects about X" or "research what's available for Y", use the workflow in `references/github-project-discovery.md`. It covers:
+
+- Multi-query search with deduplication
+- Python-GitHub-API enrichment for topics, license, full description
+- Star-based ranking and technology-route categorization
+- Structured markdown report generation and saving to `~/reports/`
+
+Key pitfall captured there: always use a `.py` script file (via `write_file`) instead of inline `python3 -c` to avoid shell escaping errors with f-strings and nested quotes.
+
 ## Quick Reference Table
 
 | Action | gh | git + curl |

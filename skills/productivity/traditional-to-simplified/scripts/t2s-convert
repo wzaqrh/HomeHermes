@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""
+Traditional Chinese → Simplified Chinese file converter.
+
+Usage:
+  t2s-convert <file>              # In-place convert single file (backup as .bak)
+  t2s-convert <file> -o <out>     # Convert to output file
+  t2s-convert <dir> --recursive   # Batch convert all .md/.txt/.json/.csv/.srt files
+  cat <file> | t2s-convert        # Pipeline mode, writes to stdout
+
+Options:
+  -o, --output FILE   Write to specific output file (single file mode only)
+  -r, --recursive     Recursively process a directory
+  --variant CODE      Target variant: zh-cn (default), zh-hans, zh-tw, zh-hk, zh-sg
+  --backup SUFFIX     Backup suffix (default: .bak, set '' to disable)
+  --dry-run           Show what would be converted without writing
+  -v, --verbose       Show each file processed
+  --diff              Show side-by-side diff of changes
+"""
+
+import zhconv, sys, os, shutil
+from pathlib import Path
+
+VARIANTS = {'zh-cn', 'zh-hans', 'zh-tw', 'zh-hk', 'zh-sg', 'zh-hant'}
+TEXT_EXTENSIONS = {'.md', '.txt', '.json', '.csv', '.srt', '.vtt', '.html', '.xml', '.yaml', '.yml', '.conf', '.cfg'}
+
+def convert_text(text: str, variant: str) -> str:
+    return zhconv.convert(text, variant)
+
+def process_file(path: Path, variant: str, backup_suffix: str = '.bak', dry_run: bool = False, verbose: bool = False, diff: bool = False):
+    try:
+        text = path.read_text(encoding='utf-8')
+    except Exception as e:
+        print(f"  ✗ {path}: {e}", file=sys.stderr)
+        return False
+
+    if zhconv.issimp(text) and variant in ('zh-cn', 'zh-hans', 'zh-sg'):
+        if verbose:
+            print(f"  - {path}: already simplified, skipped")
+        return True
+
+    result = convert_text(text, variant)
+
+    if result == text:
+        if verbose:
+            print(f"  - {path}: no changes needed")
+        return True
+
+    if dry_run:
+        print(f"  ~ {path}: would convert ({len(text)} chars)")
+        return True
+
+    if diff:
+        import difflib
+        for line in difflib.unified_diff(text.splitlines(keepends=True), result.splitlines(keepends=True),
+                                          fromfile=f'{path} (original)', tofile=f'{path} (converted)',
+                                          n=2):
+            sys.stderr.write(line)
+
+    if backup_suffix:
+        bak = path.with_suffix(path.suffix + backup_suffix)
+        shutil.copy2(path, bak)
+
+    path.write_text(result, encoding='utf-8')
+    if verbose:
+        print(f"  ✓ {path}")
+    return True
+
+def main():
+    args = sys.argv[1:]
+
+    # Pipe mode
+    if not args and not sys.stdin.isatty():
+        variant = 'zh-cn'
+        text = sys.stdin.read()
+        sys.stdout.write(convert_text(text, variant))
+        return
+
+    if not args:
+        print(__doc__.strip(), file=sys.stderr)
+        sys.exit(1)
+
+    # Parse options
+    files = []
+    output = None
+    recursive = False
+    variant = 'zh-cn'
+    backup = '.bak'
+    dry_run = False
+    verbose = False
+    show_diff = False
+
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ('-o', '--output'):
+            i += 1
+            output = Path(args[i])
+        elif a in ('-r', '--recursive'):
+            recursive = True
+        elif a == '--variant':
+            i += 1
+            v = args[i]
+            if v not in VARIANTS:
+                print(f"Unknown variant: {v}. Choose from: {', '.join(sorted(VARIANTS))}", file=sys.stderr)
+                sys.exit(1)
+            variant = v
+        elif a == '--backup':
+            i += 1
+            backup = args[i]
+        elif a == '--dry-run':
+            dry_run = True
+        elif a in ('-v', '--verbose'):
+            verbose = True
+        elif a == '--diff':
+            show_diff = True
+        else:
+            files.append(a)
+        i += 1
+
+    if dry_run:
+        verbose = True
+
+    for f in files:
+        path = Path(f)
+        if not path.exists():
+            print(f"  ✗ {path}: not found", file=sys.stderr)
+            continue
+
+        if path.is_dir():
+            if not recursive:
+                print(f"  ✗ {path}: is a directory, use --recursive to process", file=sys.stderr)
+                continue
+            exts = TEXT_EXTENSIONS
+            count = 0
+            for p in sorted(path.rglob('*')):
+                if p.suffix in exts and p.is_file():
+                    if process_file(p, variant, backup, dry_run, verbose, show_diff):
+                        count += 1
+            print(f"Processed {count} files in {path}" if not dry_run else f"Would process {count} files in {path}")
+        else:
+            if output:
+                try:
+                    text = path.read_text(encoding='utf-8')
+                    output.write_text(convert_text(text, variant), encoding='utf-8')
+                    print(f"  ✓ {path} → {output}")
+                except Exception as e:
+                    print(f"  ✗ {path}: {e}", file=sys.stderr)
+            else:
+                process_file(path, variant, backup, dry_run, verbose, show_diff)
+
+if __name__ == '__main__':
+    main()

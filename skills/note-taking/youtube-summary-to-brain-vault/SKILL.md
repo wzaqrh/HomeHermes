@@ -72,8 +72,8 @@ ENDNOTE
 - 字幕超过 ~50K 字符时，需要分块处理（每块 ~40K，重叠 2K）
 - 分别总结每块后再合并
 
-### NotebookLM 不适用于此工作流
-NotebookLM CLI（google labs-notebooklm）在当前环境中因 Google 地区限制导致 CSRF 认证失败，`qiaomu-anything-to-notebooklm` 依赖该 CLI 所以也无法工作。本技能使用 youtube-transcript-api 直连 YouTube 抓字幕，不依赖 NotebookLM。
+### NotebookLM 已恢复
+NotebookLM CLI 当前可用（2026-05-11 已验证：YouTube 源可正常添加和生成报告）。如需使用 NotebookLM，优先调用 `notebooklm-to-brainvault` 技能。本技能作为字幕抓取的 fallback 路径使用。
 
 ## 返回值（Agent 链式调用用）
 
