@@ -443,6 +443,7 @@ onboarding:
   seen:
     openclaw_residue_cleanup: true
     tool_progress_prompt: true
+    busy_input_prompt: true
 updates:
   pre_update_backup: false
   backup_keep: 5

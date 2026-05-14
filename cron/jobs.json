@@ -23,17 +23,17 @@
       "schedule_display": "0 9 * * *",
       "repeat": {
         "times": null,
-        "completed": 3
+        "completed": 5
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-05-12T12:37:34.121925+08:00",
-      "next_run_at": "2026-05-14T09:00:00+08:00",
-      "last_run_at": "2026-05-13T10:36:12.416678+08:00",
-      "last_status": "error",
-      "last_error": "RuntimeError: Provider 'deepseek' is set in config.yaml but no API key was found. Set the DEEPSEEK_API_KEY environment variable, or switch to a different provider with `hermes model`.",
+      "next_run_at": "2026-05-15T09:00:00+08:00",
+      "last_run_at": "2026-05-14T09:18:49.847196+08:00",
+      "last_status": "ok",
+      "last_error": null,
       "last_delivery_error": null,
       "deliver": "local",
       "origin": null,
@@ -45,5 +45,5 @@
       "workdir": null
     }
   ],
-  "updated_at": "2026-05-13T10:36:12.417183+08:00"
+  "updated_at": "2026-05-14T09:18:49.863860+08:00"
 }

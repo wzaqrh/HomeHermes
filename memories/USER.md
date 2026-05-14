@@ -10,4 +10,4 @@
 §
 用户要求：总结YouTube视频时如果抓不到字幕就直接失败，不能用视频description代替。description没有内容价值，宁可不存。
 §
-CLI power user managing YouTube subscriptions/content/knowledge through Hermes skills. Vault: ~/MyDoc/brain-vault (Obsidian). Preferences: agent-to-agent interfaces (JSON), cost-conscious (prefers NotebookLM free over local AI token cost), token protection ON (>10min no-transcript = skip, never use description). Pipeline thinker: youtubd→summarize→brain-vault, cron automation. Channels weighted 1-5 for priority sampling. Clean data separation in skills. Prefers direct tool calls over user manual steps.
+CLI power user, vault: ~/MyDoc/brain-vault (Obsidian). Pref: agent-to-agent (JSON), cost-conscious (NotebookLM free > local AI), token protect ON (>10min no-transcript=skip, never description). Pipeline: youtubd→summarize→brain-vault, cron, channels 1-5 weighted. PREFERS direct tool calls over manual. CRITICAL: source skills from GitHub first — never build wheels without search.

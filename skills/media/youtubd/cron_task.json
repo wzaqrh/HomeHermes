@@ -39,8 +39,20 @@
     {
       "name": "Alan Chen",
       "weight": 2
+    },
+    {
+      "name": "曲博科技教室",
+      "weight": 5
+    },
+    {
+      "name": "老石谈芯",
+      "weight": 3
+    },
+    {
+      "name": "为什么叫QQ",
+      "weight": 3
     }
   ],
-  "fetch_count": 10,
+  "fetch_count": 20,
   "schedule": "0 9 * * *"
 }

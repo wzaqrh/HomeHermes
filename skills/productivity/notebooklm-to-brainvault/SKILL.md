@@ -52,17 +52,17 @@ threshold = int(env.get('TOKEN_PROTECTION_THRESHOLD', '600'))
 notebooklm create "标题"
 
 # 2. 添加内容源（支持 YouTube URL / 网页URL / 本地文件）
-notebooklm source add <URL或文件路径> --notebook <notebook_id>
+notebooklm source add <URL或文件路径> -n <notebook_id>
 
 # 3. 生成报告
-notebooklm generate report --notebook <notebook_id>
+notebooklm generate report -n <notebook_id>
 # 获取 task_id
 
 # 4. 等待生成完成
-notebooklm artifact wait <task_id>
+notebooklm artifact wait <task_id> -n <notebook_id>
 
 # 5. 下载报告
-notebooklm download report <输出路径>
+notebooklm download report <输出路径> -n <notebook_id>
 ```
 
 ### Step 2: 如果 NotebookLM 不可用 → 判断是否 Fallback
@@ -175,3 +175,7 @@ notebooklm download report <path> -n <notebook_id>
 ```
 
 验证方法：下载后立即 `ls -lh ~/MyDoc/brain-vault/` 确认文件存在。
+
+## Cron 集成
+
+参考 `references/cron-integration.md`，包含与 youtubd 的 flush 配合方式及 `/cron add` 完整配置。

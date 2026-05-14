@@ -1,4 +1,17 @@
 {
+  "ai-video-upscaling": {
+    "archived_at": null,
+    "created_at": "2026-05-14T09:36:35.303922+00:00",
+    "created_by": "agent",
+    "last_patched_at": "2026-05-14T10:11:13.168764+00:00",
+    "last_used_at": "2026-05-14T10:11:31.735540+00:00",
+    "last_viewed_at": "2026-05-14T10:11:31.728588+00:00",
+    "patch_count": 9,
+    "pinned": false,
+    "state": "active",
+    "use_count": 6,
+    "view_count": 6
+  },
   "cli-search-troubleshooting-and-alternative-data-sourcing": {
     "archived_at": null,
     "created_at": "2026-05-12T08:29:27.563741+00:00",
@@ -12,18 +25,31 @@
     "use_count": 1,
     "view_count": 1
   },
+  "mcp-chrome": {
+    "archived_at": null,
+    "created_at": "2026-05-14T03:11:33.617005+00:00",
+    "created_by": null,
+    "last_patched_at": null,
+    "last_used_at": "2026-05-14T03:11:33.618738+00:00",
+    "last_viewed_at": "2026-05-14T03:11:33.617050+00:00",
+    "patch_count": 0,
+    "pinned": false,
+    "state": "active",
+    "use_count": 1,
+    "view_count": 1
+  },
   "notebooklm-to-brainvault": {
     "archived_at": null,
     "created_at": "2026-05-11T04:08:36.154242+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-11T06:11:43.290694+00:00",
-    "last_used_at": "2026-05-13T02:37:33.594142+00:00",
-    "last_viewed_at": "2026-05-13T02:37:33.592321+00:00",
-    "patch_count": 3,
+    "last_patched_at": "2026-05-14T03:46:54.945839+00:00",
+    "last_used_at": "2026-05-14T03:46:10.409546+00:00",
+    "last_viewed_at": "2026-05-14T03:46:10.407791+00:00",
+    "patch_count": 6,
     "pinned": false,
     "state": "active",
-    "use_count": 11,
-    "view_count": 9
+    "use_count": 16,
+    "view_count": 11
   },
   "qiaomu-anything-to-notebooklm": {
     "archived_at": null,
@@ -68,27 +94,27 @@
     "archived_at": null,
     "created_at": "2026-05-11T03:38:21.246747+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-13T03:27:57.859579+00:00",
-    "last_used_at": "2026-05-13T03:27:28.971000+00:00",
-    "last_viewed_at": "2026-05-13T03:27:28.969139+00:00",
-    "patch_count": 29,
+    "last_patched_at": "2026-05-14T03:46:40.130716+00:00",
+    "last_used_at": "2026-05-14T03:46:32.911933+00:00",
+    "last_viewed_at": "2026-05-14T03:46:32.909936+00:00",
+    "patch_count": 31,
     "pinned": false,
     "state": "active",
-    "use_count": 23,
-    "view_count": 20
+    "use_count": 38,
+    "view_count": 32
   },
   "youtube-summary-to-brain-vault": {
     "archived_at": null,
     "created_at": "2026-05-11T02:02:50.029155+00:00",
     "created_by": null,
     "last_patched_at": "2026-05-11T05:15:45.474586+00:00",
-    "last_used_at": "2026-05-11T05:15:21.432161+00:00",
-    "last_viewed_at": "2026-05-11T05:15:21.429023+00:00",
+    "last_used_at": "2026-05-14T03:46:27.797019+00:00",
+    "last_viewed_at": "2026-05-14T03:46:27.793760+00:00",
     "patch_count": 1,
     "pinned": false,
     "state": "active",
-    "use_count": 4,
-    "view_count": 4
+    "use_count": 5,
+    "view_count": 5
   },
   "youtube-to-notebooklm-summary": {
     "archived_at": null,
