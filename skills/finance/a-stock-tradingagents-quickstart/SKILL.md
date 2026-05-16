@@ -74,4 +74,5 @@ config = {
 ## 注意事项
 - 本技能生成的分析报告仅用于学术研究，不构成投资建议
 - 实时数据API需要Alpha Vantage密钥，若未配置则自动使用fallback方案
-- 所有结果均保存到`~/feushu`目录，符合用户的文件写入约束
+- TradingAgents报告保存到`~/feushu`目录
+- 如需自定义技术分析（斐波那契、量价统计、回测等），使用 `a-stock-custom-ta` 技能，结果保存到 `~/ta_reports/`

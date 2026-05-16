@@ -190,9 +190,10 @@ def cmd_fetch(category=None):
     for cat, chs in sub.items():
         if category and cat != category: continue
         for cid, info in chs.items():
+            ch_limit = info.get("fetch_limit", 100)
             print(f"  拉取 {info['name']}...")
             try:
-                videos = fetch_channel_videos(cid)
+                videos = fetch_channel_videos(cid, ch_limit)
             except Exception as e:
                 print(f"  失败: {e}")
                 continue
@@ -217,15 +218,15 @@ def cmd_fetch(category=None):
 
 def cmd_new(category=None):
     hist = load_hist()
-    pending = [v for v in hist.values() if not v.get("processed") and (not category or v.get("category") == category)]
+    pending = [(vid, v) for vid, v in hist.items() if not v.get("processed") and (not category or v.get("category") == category)]
     if not pending:
         print("没有未处理的视频")
         return
-    for v in pending:
+    for vid, v in pending:
         m = v["duration"] // 60 if v["duration"] else 0
-        print(f"  [{v['id']}] {v['title'][:50]}")
+        print(f"  [{vid}] {v['title'][:50]}")
         print(f"       {v.get('category','?')} | {v['channel_name']} | {m}min")
-        print(f"       {v['url']}")
+        print(f"       https://www.youtube.com/watch?v={vid}")
 
 
 def cmd_mark(video_id):
@@ -310,9 +311,10 @@ def cmd_cron():
     # fetch 所有目标频道
     new_vids = []
     for cid, info in targets:
+        ch_limit = info.get("fetch_limit", 100)
         print(f"  📡 拉取 {info['name']}...")
         try:
-            videos = fetch_channel_videos(cid)
+            videos = fetch_channel_videos(cid, ch_limit)
         except Exception as e:
             print(f"  ⚠️  失败: {e}")
             continue
@@ -383,59 +385,133 @@ def cmd_cron():
         print(f"         {v.get('category','?')} | {v['channel_name']} | {m}min")
 
 def cmd_flush():
-    """处理 todolist 所有条目，标记 processed，输出JSON供下游，然后清空"""
-    if not TODO_PATH.exists():
-        print("📭 todolist.txt 不存在")
+    """
+    全自动串行处理 todolist 所有视频。
+    逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空 todolist。
+    """
+    import subprocess as _sp, json as _json, time as _time, os as _os
+
+    if not TODO_PATH.exists() or not TODO_PATH.stat().st_size:
+        print("📭 todolist 为空或不存在")
         return
+
     with open(TODO_PATH) as f:
         lines = [l.strip() for l in f if l.strip()]
 
-    if not lines:
-        print("📭 todolist 为空")
-        return
-
     hist = load_hist()
-    vids = []
-    for line in lines:
-        vid = extract_vid(line)
-        if not vid: continue
-        # 确保在 history 中
-        if vid not in hist:
-            meta = get_video_meta(vid)
-            if meta:
-                meta["category"] = "导入"
-                meta["fetched_at"] = str(date.today())
-                meta["processed"] = False
-                meta["note"] = "来自: flush"
-                hist[vid] = meta
-        else:
-            hist[vid]["processed"] = True
-        vids.append(vid)
+    VAULT = _os.path.expanduser("~/MyDoc/brain-vault")
+    _os.makedirs(VAULT, exist_ok=True)
 
-    if vids:
-        save_hist(hist)
+    ok = fail = skip = 0
 
-    # 输出 JSON 格式的视频列表（供下游 Agent 消费）
-    import json as _json
-    result = []
-    for vid in vids:
-        if vid in hist:
-            v = hist[vid]
-            result.append({
-                "id": vid,
-                "title": v.get("title", ""),
-                "url": f"https://www.youtube.com/watch?v={vid}",
-                "channel": v.get("channel_name", ""),
-                "duration": v.get("duration", 0)
-            })
+    for vid_url in lines:
+        vid = extract_vid(vid_url)
+        if not vid:
+            skip += 1
+            continue
 
-    # 清空 todolist
+        info = hist.get(vid, {})
+        title = info.get("title", vid)
+        channel = info.get("channel_name", "unknown")
+        duration = info.get("duration", 0)
+        mins = duration // 60 if duration else 0
+
+        safe_t = re.sub(r'[\\/*?:"<>|]', "", title)[:30]
+        filename = f"{channel}_{safe_t}_总结.md".replace(" ", "_")
+        filepath = _os.path.join(VAULT, filename)
+
+        print(f"\n▶ [{vid}] {title[:40]}  |  {channel}  |  {mins}min")
+
+        # A: 创建 Notebook
+        r = _sp.run(["notebooklm", "create", f"flush-{vid}"],
+                    capture_output=True, text=True, timeout=30)
+        nb_id = ""
+        for ln in r.stdout.split("\n"):
+            if "Created notebook:" in ln:
+                nb_id = ln.split(":")[1].strip().split()[0]
+                break
+        if not nb_id:
+            print("   ❌ 创建 notebook 失败")
+            fail += 1
+            continue
+
+        # B: 添加源
+        r = _sp.run(["notebooklm", "source add", vid_url, "-n", nb_id],
+                    capture_output=True, text=True, timeout=30)
+        if "Added source" not in r.stdout:
+            print("   ❌ 添加源失败")
+            _sp.run(["notebooklm", "delete", nb_id], capture_output=True, timeout=15)
+            fail += 1
+            continue
+
+        # C: 生成报告（耐心等待模式）
+        generated = False
+        for attempt in range(1, 17):
+            print(f"   🏗️  生成 (第{attempt}次)...")
+            r = _sp.run(["notebooklm", "generate", "report", "-n", nb_id],
+                        capture_output=True, text=True, timeout=300)
+            out = r.stdout + r.stderr
+
+            if "completed" in out.lower() or "briefing document" in out.lower():
+                # 获取 artifact_id 并下载
+                aid = ""
+                for ln in r.stdout.split("\n"):
+                    if "artifact wait" in ln or "completed" in ln:
+                        for p in ln.strip().split():
+                            if "-" in p and len(p) > 20:
+                                aid = p; break
+                if not aid:
+                    r2 = _sp.run(["notebooklm", "artifact", "list", "-n", nb_id],
+                                 capture_output=True, text=True, timeout=30)
+                    for ln in r2.stdout.split("\n"):
+                        if "briefing-doc" in ln or "report" in ln.lower():
+                            aid = ln.strip().split()[0]; break
+                if aid:
+                    _sp.run(["notebooklm", "artifact", "wait", aid, "-n", nb_id],
+                            capture_output=True, text=True, timeout=300)
+                    _sp.run(["notebooklm", "download", "report", filepath, "-n", nb_id],
+                            capture_output=True, text=True, timeout=30)
+                    if _os.path.exists(filepath) and _os.path.getsize(filepath) > 100:
+                        print(f"   ✅ {filename}")
+                        generated = True
+                        ok += 1
+                        if vid in hist:
+                            hist[vid]["processed"] = True
+                            hist[vid]["note"] = "已总结 → brain-vault"
+                            save_hist(hist)
+                        break
+
+            if "quota" in out.lower() or "rate limited" in out.lower() or "daily quota" in out:
+                w = [900, 1800][attempt - 1] if attempt <= 2 else 3600
+                print(f"   ⏳ 配额限制，等{w//60}min...")
+                _time.sleep(w)
+            else:
+                print(f"   ⚠️  失败，10秒后重试...")
+                _time.sleep(10)
+
+        if not generated:
+            # 改用 notebooklm ask
+            print(f"   🔄 改用 ask...")
+            r = _sp.run(["notebooklm", "ask",
+                        "请从视频内容生成结构化中文摘要，含核心观点、关键论述和金句摘录。",
+                        "-n", nb_id], capture_output=True, text=True, timeout=120)
+            if r.stdout.strip():
+                with open(filepath, "w") as f:
+                    f.write(r.stdout)
+                print(f"   ✅ ask → {filename}")
+                ok += 1
+                if vid in hist:
+                    hist[vid]["processed"] = True
+                    hist[vid]["note"] = "已总结 → brain-vault (ask)"
+                    save_hist(hist)
+            else:
+                print("   ❌ ask 也失败")
+                fail += 1
+
+        _sp.run(["notebooklm", "delete", nb_id], capture_output=True, timeout=15)
+
     open(TODO_PATH, "w").write("")
-
-    print(f"🔄 flush 完成: {len(vids)} 个视频")
-    print(f"   已标记 processed，todolist 已清空")
-    print(f"   下方 JSON 供下游 skill 消费（notebooklm-to-brainvault 等）：")
-    print(_json.dumps(result, indent=2, ensure_ascii=False))
+    print(f"\n📊 flush 完成:  ✅ {ok}  |  ❌ {fail}  |  ⏭ {skip}")
 
 def cmd_stats():
     sub = load_sub()

@@ -6,7 +6,7 @@
 §
 用户使用 Obsidian 管理知识，vault 为 ~/MyDoc/brain-vault。偏好将 YouTube 总结自动保存到 brain-vault。已创建 notebooklm-to-brainvault 技能（NotebookLM + 本地 fallback 双路径）。
 §
-用户偏好与约束：1. 偏好CLI工具，股票分析优先使用tradingagents-runner技能；2. 要求严格匹配分析参数：ticker、analysts、depth、provider、language、date；3. 多次要求分析600276.SS（恒瑞医药）和300760.SZ（迈瑞医疗），偏好浅分析+基本面+技术面维度。
+CLI power user, vault: ~/MyDoc/brain-vault (Obsidian). Pref: agent-to-agent JSON, cost-conscious (NotebookLM free > local AI), token protect ON, >10min no-transcript=skip (never description). Pipeline: youtubd→brain-vault/cron. Source skills from GitHub first.
 §
 用户要求：总结YouTube视频时如果抓不到字幕就直接失败，不能用视频description代替。description没有内容价值，宁可不存。
 §

@@ -51,8 +51,12 @@
     {
       "name": "为什么叫QQ",
       "weight": 3
+    },
+    {
+      "name": "土斯土耶夫斯基",
+      "weight": 3
     }
   ],
-  "fetch_count": 20,
+  "fetch_count": 5,
   "schedule": "0 9 * * *"
 }

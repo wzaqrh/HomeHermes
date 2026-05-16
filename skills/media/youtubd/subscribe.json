@@ -4,7 +4,8 @@
       "name": "魏知超啥书都读",
       "url": "https://www.youtube.com/@weizhichao",
       "added": "2026-05-11",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     }
   },
   "经济": {
@@ -12,13 +13,22 @@
       "name": "宏观洞察",
       "url": "https://www.youtube.com/channel/UCbJpRVF1AB2KO1cvQoK0S5Q",
       "added": "2026-05-11",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     },
     "UCtwwnAiODpBkLFaYKHoYkBQ": {
       "name": "Boss Economics World",
       "url": "https://www.youtube.com/@bosshankslord",
       "added": "2026-05-11",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
+    },
+    "UC0FecJnSedfu94uZgMJb2KA": {
+      "name": "土斯土耶夫斯基",
+      "url": "https://www.youtube.com/@%D0%9A%D0%B8%D1%80%D0%B8%D0%BB%D0%BB%D0%91%D0%B5%D0%B7%D1%83%D0%B3%D0%BB%D0%BE%D0%B2-%D0%B47%D1%8D",
+      "added": "2026-05-15",
+      "weight": 3,
+      "fetch_limit": 100
     }
   },
   "科技": {
@@ -26,49 +36,57 @@
       "name": "最佳拍档",
       "url": "https://www.youtube.com/@bestpartners",
       "added": "2026-05-11",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     },
     "UCKV2yWPB3wn0RTZh3cTD8YA": {
       "name": "硅谷101",
       "url": "https://www.youtube.com/channel/UCKV2yWPB3wn0RTZh3cTD8YA",
       "added": "2026-05-12",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     },
     "UCOsQMj_MZkQ5N7f1OOMB87Q": {
       "name": "LT視界",
       "url": "https://www.youtube.com/channel/UCOsQMj_MZkQ5N7f1OOMB87Q",
       "added": "2026-05-12",
-      "weight": 1
+      "weight": 1,
+      "fetch_limit": 100
     },
     "UChnNjLyx_5rk_iDPQ2BQDQA": {
       "name": "硅谷101播客",
       "url": "https://www.youtube.com/@valley101podcast",
       "added": "2026-05-12",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     },
     "UCaIIFXfdQUYf3OHPIFNDdrQ": {
       "name": "Alan Chen",
       "url": "https://www.youtube.com/channel/UCaIIFXfdQUYf3OHPIFNDdrQ",
       "added": "2026-05-12",
-      "weight": 2
+      "weight": 2,
+      "fetch_limit": 100
     },
     "UCq8Xi8muhehxRMIK76I1jog": {
       "name": "曲博科技教室",
       "url": "https://www.youtube.com/@ansforce",
       "added": "2026-05-13",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     },
     "UC5mVFJf71Ax6TJZcbmTnilw": {
       "name": "老石谈芯",
       "url": "https://www.youtube.com/@laoshi_tec",
       "added": "2026-05-13",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     },
     "UClkMmnf9yOKbYRMfOv1HvwA": {
       "name": "为什么叫QQ",
       "url": "https://www.youtube.com/@whycallqq",
       "added": "2026-05-13",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     }
   },
   "商业": {
@@ -76,13 +94,15 @@
       "name": "The Diary Of A CEO",
       "url": "https://www.youtube.com/channel/UCGq-a57w-aPwyi3pW7XLiHw",
       "added": "2026-05-12",
-      "weight": 2
+      "weight": 2,
+      "fetch_limit": 100
     },
     "UCNe05rN8O37yMwkmo55B5kA": {
       "name": "Fempire Mindset",
       "url": "https://www.youtube.com/@fempiremindset",
       "added": "2026-05-12",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     }
   }
 }
