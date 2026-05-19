@@ -8,10 +8,10 @@ youtubd 订阅管理脚本（新结构）
   todolist.txt    — 未处理视频URL列表（一行一个）
 
 命令：
-  list                         列出订阅
-  subscribe <分类> <频道名>    添加订阅（权重默认3）
-  weight <channel_id> <1-5>   设置权重
-  unsubscribe <频道名/ID>      取消订阅
+  list                         列出所有本地订阅频道
+  subscribe <分类> <频道名>    添加本地订阅（权重默认3）
+  weight <频道名/ID> <1-5>     设置权重
+  unsubscribe <频道名/ID>      取消本地订阅
   fetch [分类]                 拉取频道最新视频
   new [分类]                   列出未处理的视频
   mark <视频ID>                标记为已处理
@@ -764,6 +764,259 @@ def cmd_gethistory(limit=100):
         print("\n📭 没有新视频（均已存在或已处理）")
 
 
+def cmd_listplaylists():
+    """列出 YouTube 所有播放列表（需 Chrome 运行 + MCP bridge）"""
+    print("🔌 正在连接 MCP bridge...")
+    try:
+        sid = _mcp_connect()
+        print(f"  ✅ 已连接 (session: {sid[:8]}...)")
+    except Exception as e:
+        print(f"❌ MCP bridge 连接失败: {e}")
+        return
+
+    # 查找或打开播放列表页面
+    tab_id = None
+    result = _mcp_call(sid, "chrome_get_windows_and_tabs", {})
+    if result:
+        try:
+            text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+            data = json.loads(text)
+            inner = data.get("result", data)
+            windows = inner.get("windows", [inner] if "tabs" in inner else [])
+            for win in windows:
+                for tab in win.get("tabs", []):
+                    if "youtube.com/feed/playlists" in tab.get("url", ""):
+                        tab_id = tab.get("tabId")
+                        print(f"  📺 找到播放列表页面标签")
+                        break
+        except: pass
+
+    if not tab_id:
+        print("  📺 新建标签打开播放列表页面...")
+        result = _mcp_call(sid, "chrome_navigate", {"url": "https://www.youtube.com/feed/playlists"})
+        if result:
+            try:
+                text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+                data = json.loads(text)
+                tab_id = data.get("result", data).get("tabId")
+            except: pass
+
+    if not tab_id:
+        print("❌ 无法打开播放列表页面")
+        return
+
+    import time
+    time.sleep(2)
+
+    # 通过 JS 提取播放列表
+    js_code = (
+        "var ytid=window.ytInitialData;"
+        "if(!ytid)return JSON.stringify({error:'no ytInitialData'});"
+        "var grid=ytid.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.richGridRenderer;"
+        "if(!grid)return JSON.stringify({error:'no grid'});"
+        "var contents=grid.contents||[];"
+        "var items=[];"
+        "for(var i=0;i<contents.length;i++){"
+        "  var c=contents[i];"
+        "  if(!c.richItemRenderer)continue;"
+        "  var lvm=c.richItemRenderer.content?.lockupViewModel;"
+        "  if(!lvm)continue;"
+        "  if(lvm.contentType==='LOCKUP_CONTENT_TYPE_PLAYLIST'){"
+        "    var meta=lvm.metadata?.lockupMetadataViewModel||{};"
+        "    items.push({id:lvm.contentId, title:(meta.title?.content||''), contentType:lvm.contentType});"
+        "  }"
+        "}"
+        "return JSON.stringify({total:items.length, playlists:items});"
+    )
+
+    result = _mcp_call(sid, "chrome_javascript", {
+        "tabId": tab_id, "code": js_code, "timeoutMs": 15000
+    })
+    if not result:
+        print("❌ 未能获取播放列表")
+        return
+
+    try:
+        text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+        data = json.loads(text)
+        inner = json.loads(data.get("result", "{}"))
+    except Exception as e:
+        print(f"❌ 解析数据失败: {e}")
+        return
+
+    if "error" in inner:
+        print(f"❌ {inner['error']}")
+        return
+
+    playlists = inner.get("playlists", [])
+    if not playlists:
+        print("📭 没有找到播放列表")
+        return
+
+    print(f"\n📋 共 {len(playlists)} 个播放列表:\n")
+    for i, pl in enumerate(playlists, 1):
+        pid = pl["id"]
+        name = pl["title"] or "(未命名)"
+        print(f"  {i:2d}. {name}")
+        print(f"      ID: {pid}")
+        print(f"      链接: https://www.youtube.com/playlist?list={pid}")
+        print()
+
+
+def cmd_importplaylist():
+    """将播放列表内所有视频导入 todolist.txt
+
+    用法: importplaylist <播放列表ID 或 播放列表名>
+           importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ
+           importplaylist 系统经济金融
+    """
+    if len(sys.argv) < 3:
+        print("用法: importplaylist <播放列表ID 或 名称>")
+        print("示例: importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ")
+        print("      importplaylist 系统经济金融")
+        return
+
+    query = " ".join(sys.argv[2:])
+    print(f"🔍 正在查找播放列表: {query}")
+
+    # 尝试 yt-dlp 直接爬播放列表
+    playlist_id = None
+    remote_done = False
+
+    # 如果输入的是完整 URL 或 PL/WL/LL ID，直接使用
+    url_match = re.search(r'(?:list=)?([a-zA-Z0-9_-]+)', query)
+    if query.startswith("PL") or query.startswith("WL") or query.startswith("LL") or query.startswith("FL"):
+        playlist_id = query
+    elif "youtube.com/playlist" in query or "youtu.be" in query:
+        m = re.search(r'[?&]list=([a-zA-Z0-9_-]+)', query)
+        if m: playlist_id = m.group(1)
+
+    # 如果没找到 ID，尝试通过 MCP bridge 查找播放列表名称
+    if not playlist_id:
+        try:
+            sid = _mcp_connect()
+            tab_id = _mcp_find_history_tab(sid)  # reuse to find playlists tab
+            # Instead, open playlists page
+            result = _mcp_call(sid, "chrome_navigate", {"url": "https://www.youtube.com/feed/playlists"})
+            if result:
+                import time
+                time.sleep(2)
+                js = (
+                    "var ytid=window.ytInitialData;"
+                    "if(!ytid)return JSON.stringify({error:'no data'});"
+                    "var grid=ytid.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.richGridRenderer;"
+                    "if(!grid)return JSON.stringify({error:'no grid'});"
+                    "var contents=grid.contents||[];"
+                    "for(var i=0;i<contents.length;i++){"
+                    "  var c=contents[i];"
+                    "  if(!c.richItemRenderer)continue;"
+                    "  var lvm=c.richItemRenderer.content?.lockupViewModel;"
+                    "  if(!lvm||lvm.contentType!=='LOCKUP_CONTENT_TYPE_PLAYLIST')continue;"
+                    "  var meta=lvm.metadata?.lockupMetadataViewModel||{};"
+                    "  var name=(meta.title?.content||'').toLowerCase();"
+                    "  if(name.indexOf('" + query.lower() + "')>=0){"
+                    "    return JSON.stringify({id:lvm.contentId, name:meta.title?.content||''});"
+                    "  }"
+                    "}"
+                    "return JSON.stringify({error:'not found'});"
+                )
+                result = _mcp_call(sid, "chrome_javascript", {"tabId": tab_id, "code": js, "timeoutMs": 10000})
+                if result:
+                    text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+                    data = json.loads(text)
+                    inner = json.loads(data.get("result", "{}"))
+                    if "id" in inner:
+                        playlist_id = inner["id"]
+                        print(f"  ✅ 找到播放列表: {inner.get('name', '')} (ID: {playlist_id})")
+        except:
+            pass
+
+    if not playlist_id:
+        print(f"❌ 找不到播放列表: {query}")
+        return
+
+    # 用 yt-dlp 爬取播放列表所有视频
+    url = f"https://www.youtube.com/playlist?list={playlist_id}"
+    print(f"  📡 正在爬取播放列表视频...")
+    
+    try:
+        r = subprocess.run(
+            ["yt-dlp", "--flat-playlist", "--dump-json", url],
+            capture_output=True, text=True, timeout=120
+        )
+    except subprocess.TimeoutExpired:
+        print("❌ 请求超时（播放列表太大？）")
+        return
+    except Exception as e:
+        print(f"❌ yt-dlp 失败: {e}")
+        return
+
+    if r.returncode != 0:
+        print(f"❌ yt-dlp 错误: {r.stderr[:300]}")
+        return
+
+    # 解析视频列表
+    videos = []
+    for line in r.stdout.strip().split("\n"):
+        if not line.strip(): continue
+        try:
+            raw = json.loads(line)
+            videos.append({
+                "id": raw["id"],
+                "title": raw.get("title", ""),
+                "url": f"https://www.youtube.com/watch?v={raw['id']}",
+                "channel": raw.get("channel", ""),
+                "channel_id": raw.get("channel_id", ""),
+                "duration": raw.get("duration", 0),
+                "upload_date": raw.get("upload_date", ""),
+            })
+        except:
+            continue
+
+    if not videos:
+        print("📭 播放列表为空或无法读取")
+        return
+
+    print(f"  🎬 找到 {len(videos)} 个视频")
+
+    # 保存到 history.json
+    hist = load_hist()
+    new_ids = []
+    for v in videos:
+        vid = v["id"]
+        if vid in hist:
+            if not hist[vid].get("processed"):
+                new_ids.append(vid)
+            continue
+
+        hist[vid] = {
+            "id": vid,
+            "title": v.get("title", ""),
+            "url": v["url"],
+            "channel_name": v.get("channel", ""),
+            "channel_id": v.get("channel_id", ""),
+            "duration": v.get("duration", 0),
+            "upload_date": v.get("upload_date", ""),
+            "category": "播放列表导入",
+            "fetched_at": str(date.today()),
+            "processed": False,
+            "note": f"来自播放列表 {playlist_id}"
+        }
+        new_ids.append(vid)
+
+    if new_ids:
+        save_hist(hist)
+        lines = [f"https://www.youtube.com/watch?v={vid}" for vid in new_ids]
+        todo_append(lines)
+        print(f"\n✅ 添加 {len(new_ids)} 个视频到 todolist.txt")
+        for v in videos[:5]:
+            print(f"  + [{v['id']}] {v['title'][:45]}")
+        if len(videos) > 5:
+            print(f"  ... 还有 {len(videos)-5} 个")
+    else:
+        print("\n📭 没有新视频（均已存在或已处理）")
+
+
 def cmd_stats():
     sub = load_sub()
     hist = load_hist()
@@ -797,6 +1050,8 @@ if __name__ == "__main__":
         "flush": lambda: cmd_flush(),
         "stats": lambda: cmd_stats(),
         "gethistory": lambda: cmd_gethistory(),
+        "listplaylists": lambda: cmd_listplaylists(),
+        "importplaylist": lambda: cmd_importplaylist(),
     }
     if cmd in h:
         if cmd in ("subscribe",) and len(sys.argv) < 4:

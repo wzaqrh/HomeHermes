@@ -200,6 +200,25 @@ curl -s -X POST http://127.0.0.1:12306/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"chrome_navigate","arguments":{"url":"https://example.com"}}}'
 ```
 
+### Step 6: Execute JavaScript in a tab
+
+Two paths, with different async/await support:
+
+**A. Via Hermes native MCP tools (mcp_chrome_chrome_javascript)** — supports async/await and Promises. The agent's built-in MCP client handles promise resolution automatically.
+
+**B. Via HTTP API to the MCP bridge** — does NOT support async/await. The chrome_javascript tool via HTTP returns `undefined` for async functions because it does not await the Promise. Only synchronous `return` statements capture results:
+
+```javascript
+// WORKS via HTTP API (sync):
+var items = []; /* ... do work ... */
+return JSON.stringify(items);
+
+// DOES NOT WORK via HTTP API (async — returns undefined):
+(async () => { var r = await fetch(...); return JSON.stringify(r); })()
+```
+
+**MCP response parsing (HTTP API):** Responses use SSE format with an extra level of JSON escaping. The JS return value is at `data.result -> outer text -> result field -> parse again`. See `references/js-execution-via-http.md` for a worked example.
+
 The initialize response includes headers:
 - `mcp-session-id: <uuid>` — required for subsequent requests
 - `content-type: text/event-stream` — responses use SSE format (event: message\ndata: {...}\n\n), not plain JSON
@@ -270,3 +289,5 @@ Chrome is not running. Start Chrome; the bridge auto-starts with the extension.
 ## Reference Files
 
 - `references/bridge-architecture.md` — internal architecture details: singleton MCP server, session management, native messaging format, tool call flow, startup lifecycle
+- `references/python-client.md` — reusable Python client pattern (connect, call tools, execute JS, parse triple-nested JSON responses)
+- `references/js-execution-via-http.md` — detailed guide to JS execution via HTTP API (async limitation, response parsing code, pitfalls)
