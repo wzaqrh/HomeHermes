@@ -199,10 +199,11 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 | `unsubscribe 频道名/ID` | 取消订阅 |
 | `fetch [分类]` | 拉取最新视频到 history + 追加到 todolist |
 | `new [分类]` | 列出未处理的视频 |
-| `mark 视频ID` | 标记 history 中 processed=true（不操作 todolist） |
+| `mark <视频ID>` | 标记 history 中 processed=true（不操作 todolist） |
 | `loadlist [文件路径]` | 从 txt 导入视频列表（默认 todolist.txt） |
 | `cron` | fetch + 加权随机抽 N 个 → 追加到 todolist |
 | `flush` | **全自动串行处理** todolist 所有视频：逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空 todolist。可后台运行。 |
+| `gethistory [数量]` | **拉取 YouTube 观看历史**（需 Chrome 运行 + MCP bridge），将视频追加到 todolist。默认 100 个。 |
 
 **强制覆盖模式**：`flush` 和 `cron` 启动时自动调用 `kill_previous_flush()`，干掉同类旧进程。保证同一时间只有一个在跑。
 

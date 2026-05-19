@@ -17,16 +17,19 @@ youtubd 订阅管理脚本（新结构）
   mark <视频ID>                标记为已处理
   stats                        统计概览
   loadlist [文件路径]          从txt文件导入
+  gethistory [数量]            拉取 YouTube 观看历史（需 Chrome）
 """
 
-import json, subprocess, sys, os, re
-from datetime import date
+import json, subprocess, sys, os, re, urllib.request, urllib.error
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SUB_PATH = SKILL_DIR / "subscribe.json"
 HIST_PATH = SKILL_DIR / "history.json"
 TODO_PATH = SKILL_DIR / "todolist.txt"
+MCP_URL = "http://127.0.0.1:12306/mcp"
+YOUTUBE_HISTORY_URL = "https://www.youtube.com/feed/history"
 
 
 def load_sub():
@@ -54,7 +57,6 @@ def todo_append(new_lines):
             for l in old:
                 vid = extract_vid(l)
                 if vid: existing.add(vid)
-        # 只保留不与新行重复的行
         keep = [l for l in old if extract_vid(l) not in {extract_vid(nl) for nl in new_lines if extract_vid(nl)}]
         keep.extend(new_lines)
     else:
@@ -134,7 +136,7 @@ def kill_previous_flush():
     my_pid = str(os.getpid())
     script = os.path.abspath(__file__)
     r = subprocess.run(
-        ["pgrep", "-f", rf"python3.*{script}.*(flush|cron)"],
+        ["pgrep", "-f", rf"python3.*{script}.*(flush|cron|gethistory)"],
         capture_output=True, text=True, timeout=10
     )
     for pid_str in r.stdout.strip().split("\n"):
@@ -145,6 +147,133 @@ def kill_previous_flush():
                 print(f"  🧹 已干掉旧进程 PID={pid}")
             except (ProcessLookupError, ValueError):
                 pass
+
+
+# ─── MCP bridge 通信 ─────────────────────────
+
+def _mcp_connect():
+    """连接 MCP bridge，返回 session ID"""
+    body = json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "youtubd", "version": "1.0"}
+        }
+    }).encode()
+    req = urllib.request.Request(
+        MCP_URL, data=body,
+        headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        sid = dict(resp.getheaders()).get('mcp-session-id', '')
+        resp.read()
+    return sid
+
+
+def _mcp_call(sid, method, params):
+    """调用 MCP tool，返回结果"""
+    body = json.dumps({
+        "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+        "params": {"name": method, "arguments": params}
+    }).encode()
+    req = urllib.request.Request(
+        MCP_URL, data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "mcp-session-id": sid
+        }
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        raw = resp.read().decode()
+    # 解析 SSE 格式响应
+    for line in raw.split("\n"):
+        line = line.strip()
+        if line.startswith("data: "):
+            return json.loads(line[6:])
+    return None
+
+
+def _mcp_find_history_tab(sid):
+    """在 Chrome 中查找或打开 YouTube 历史页面"""
+    # 先查现有标签
+    result = _mcp_call(sid, "chrome_get_windows_and_tabs", {})
+    if result:
+        try:
+            text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+            data = json.loads(text)
+            # MCP bridge 返回嵌套的 result
+            inner = data.get("result", data)
+            windows = inner.get("windows", [inner] if "tabs" in inner else [])
+            for win in windows:
+                for tab in win.get("tabs", []):
+                    url = tab.get("url", "")
+                    if "youtube.com/feed/history" in url:
+                        print(f"  📺 找到历史页面标签")
+                        return tab.get("tabId")
+        except: pass
+    
+    # 新建标签
+    print("  📺 新建标签打开历史页面...")
+    result = _mcp_call(sid, "chrome_navigate", {"url": YOUTUBE_HISTORY_URL})
+    if result:
+        try:
+            text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+            data = json.loads(text)
+            inner = data.get("result", data)
+            return inner.get("tabId")
+        except: pass
+    return None
+
+
+def _mcp_run_js(sid, tab_id, js_code):
+    """在浏览器标签中执行 JavaScript"""
+    result = _mcp_call(sid, "chrome_javascript", {
+        "tabId": tab_id, "code": js_code, "timeoutMs": 60000
+    })
+    if not result:
+        return None
+    try:
+        text = result.get("result", {}).get("content", [{}])[0].get("text", "{}")
+        data = json.loads(text)
+        inner = json.loads(data.get("result", "{}"))
+        return inner
+    except:
+        return None
+
+
+def _fetch_videos_via_browser(sid, tab_id, limit=100):
+    """通过浏览器端 JavaScript 同步提取观看记录"""
+    
+    # 同步 JS — 只读 ytInitialData + 不用 async/await
+    js_code = (
+        "var allVideos=[];"
+        "var token=null;"
+        "var ytid=window.ytInitialData;"
+        "if(ytid){"
+        "  var sections=ytid.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents||[];"
+        "  for(var i=0;i<sections.length;i++){"
+        "    var sec=sections[i];"
+        "    if(sec.itemSectionRenderer){"
+        "      for(var j=0;j<sec.itemSectionRenderer.contents.length;j++){"
+        "        var item=sec.itemSectionRenderer.contents[j];"
+        "        if(item.videoRenderer){"
+        "          var v=item.videoRenderer;"
+        "          allVideos.push({id:v.videoId, title:(v.title?.runs?.[0]?.text||''), channel:(v.longBylineText?.runs?.[0]?.text||''), channelId:(v.longBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId||'')});"
+        "        }else if(item.messageRenderer){"
+        "          return JSON.stringify({error:'not_logged_in', message:(item.messageRenderer.text?.runs?.[0]?.text||'')});"
+        "        }"
+        "      }"
+        "    }else if(sec.continuationItemRenderer){"
+        "      token=sec.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token;"
+        "    }"
+        "  }"
+        "}"
+        "return JSON.stringify({total:allVideos.length, videos:allVideos.slice(0," + str(limit) + "), hasToken:!!token});"
+    )
+    
+    return _mcp_run_js(sid, tab_id, js_code)
 
 
 # ─── 命令实现 ─────────────────────────────────
@@ -208,6 +337,7 @@ def cmd_fetch(category=None):
     sub = load_sub()
     hist = load_hist()
     added = 0
+    new_vids = []
     for cat, chs in sub.items():
         if category and cat != category: continue
         for cid, info in chs.items():
@@ -225,11 +355,11 @@ def cmd_fetch(category=None):
                     v["processed"] = False
                     v["note"] = ""
                     hist[v["id"]] = v
+                    new_vids.append(v)
                     added += 1
             print(f"    -> {len(videos)} 条, 新增 {added}")
     if added:
         save_hist(hist)
-        # 新fetch的视频追加到 todolist
         new_urls = [f"https://www.youtube.com/watch?v={v['id']}" for v in new_vids]
         todo_append(new_urls)
         print(f"\n新增 {added} 个")
@@ -301,8 +431,6 @@ def cmd_cron():
     fetch_count = cron.get("fetch_count", 5)
     up_list = cron.get("up_list", [])
 
-    # cron_task.json 结构：up_list = [{name, weight}, ...]
-    # 或向后兼容：up_list 为空则用全部订阅
     targets = []
     if up_list:
         for entry in up_list:
@@ -330,7 +458,6 @@ def cmd_cron():
         print("❌ 没有目标频道。先在 subscribe.json 添加订阅，或填写 cron_task.json 的 up_list。")
         return
 
-    # fetch 所有目标频道
     new_vids = []
     for cid, info in targets:
         ch_limit = info.get("fetch_limit", 100)
@@ -352,7 +479,6 @@ def cmd_cron():
                         new_vids.append(v)
                 break
         else:
-            # 未分类的（up_list 里的新频道）
             for v in videos:
                 if v["id"] not in hist:
                     v["category"] = "cron"
@@ -366,14 +492,12 @@ def cmd_cron():
         save_hist(hist)
         print(f"\n  新增 {len(new_vids)} 个视频")
 
-    # 按权重随机挑选未处理的
     pending_items = [(vid, v) for vid, v in hist.items() if not v.get("processed")]
     if not pending_items:
         print("📭 没有未处理的视频")
         open(TODO_PATH, "w").write("")
         return
 
-    # 加权随机：权重越高，被挑中的概率越大
     pending_vids = [item[0] for item in pending_items]
     pending_data = [item[1] for item in pending_items]
     weights = []
@@ -393,7 +517,6 @@ def cmd_cron():
     picked_indices = random.choices(range(len(pending_items)), weights=weights, k=pick_n)
     picked = [(pending_vids[i], pending_data[i]) for i in picked_indices]
 
-    # 追加写入 todolist.txt（累计模式，不覆盖）
     lines = [f"https://www.youtube.com/watch?v={vid}" for vid, _ in picked]
     todo_append(lines)
     save_hist(hist)
@@ -406,11 +529,9 @@ def cmd_cron():
         print(f"   ({w}) [{vid}] {v['title'][:45]}")
         print(f"         {v.get('category','?')} | {v['channel_name']} | {m}min")
 
+
 def cmd_flush():
-    """
-    全自动串行处理 todolist 所有视频。
-    逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空 todolist。
-    """
+    """全自动串行处理 todolist 所有视频（NotebookLM → brain-vault）"""
     kill_previous_flush()
     import subprocess as _sp, json as _json, time as _time, os as _os
 
@@ -445,7 +566,6 @@ def cmd_flush():
 
         print(f"\n▶ [{vid}] {title[:40]}  |  {channel}  |  {mins}min")
 
-        # A: 创建 Notebook
         r = _sp.run(["notebooklm", "create", f"flush-{vid}"],
                     capture_output=True, text=True, timeout=30)
         nb_id = ""
@@ -458,7 +578,6 @@ def cmd_flush():
             fail += 1
             continue
 
-        # B: 添加源
         r = _sp.run(["notebooklm", "source add", vid_url, "-n", nb_id],
                     capture_output=True, text=True, timeout=30)
         if "Added source" not in r.stdout:
@@ -467,7 +586,6 @@ def cmd_flush():
             fail += 1
             continue
 
-        # C: 生成报告（耐心等待模式）
         generated = False
         for attempt in range(1, 17):
             print(f"   🏗️  生成 (第{attempt}次)...")
@@ -476,7 +594,6 @@ def cmd_flush():
             out = r.stdout + r.stderr
 
             if "completed" in out.lower() or "briefing document" in out.lower():
-                # 获取 artifact_id 并下载
                 aid = ""
                 for ln in r.stdout.split("\n"):
                     if "artifact wait" in ln or "completed" in ln:
@@ -513,7 +630,6 @@ def cmd_flush():
                 _time.sleep(10)
 
         if not generated:
-            # 改用 notebooklm ask
             print(f"   🔄 改用 ask...")
             r = _sp.run(["notebooklm", "ask",
                         "请从视频内容生成结构化中文摘要，含核心观点、关键论述和金句摘录。",
@@ -535,6 +651,118 @@ def cmd_flush():
 
     open(TODO_PATH, "w").write("")
     print(f"\n📊 flush 完成:  ✅ {ok}  |  ❌ {fail}  |  ⏭ {skip}")
+
+
+def cmd_gethistory(limit=100):
+    """从 YouTube 拉取观看历史（需 Chrome 运行 + MCP bridge）
+
+    通过 Chrome MCP bridge 连接已登录的浏览器，获取 YouTube 观看记录，
+    将新视频加入 history.json 和 todolist.txt。
+
+    用法: gethistory [数量]
+           gethistory 50
+    默认: 最近 100 个
+    """
+    # 解析参数
+    args = sys.argv[2:]
+    if args and args[0].isdigit():
+        limit = int(args[0])
+
+    kill_previous_flush()
+
+    print("🔌 正在连接 MCP bridge...")
+
+    # 连接 MCP bridge
+    try:
+        sid = _mcp_connect()
+        if not sid:
+            print("❌ MCP bridge 连接失败（无 session ID）")
+            return
+        print(f"  ✅ 已连接 (session: {sid[:8]}...)")
+    except urllib.error.URLError:
+        print("❌ 无法连接 MCP bridge (127.0.0.1:12306)")
+        print("   请确保 Chrome 正在运行且 MCP bridge 已启动")
+        print("   或在 Chrome 中点击扩展的 Connect 按钮")
+        return
+    except Exception as e:
+        print(f"❌ 连接失败: {e}")
+        return
+
+    # 查找历史页面 tab
+    tab_id = _mcp_find_history_tab(sid)
+    if not tab_id:
+        print("❌ 无法打开或找到 YouTube 历史页面")
+        return
+    print(f"  📺 使用标签 ID: {tab_id}")
+
+    # 通过浏览器提取视频
+    result = _fetch_videos_via_browser(sid, tab_id, limit)
+
+    if not result:
+        print("❌ 未能从浏览器获取数据")
+        return
+
+    if "error" in result:
+        if result["error"] == "not_logged_in":
+            print("❌ YouTube 未登录，请在浏览器中登录 YouTube")
+        else:
+            print(f"❌ 浏览器返回错误: {result.get('error')}")
+            print(f"   {result.get('message', '')}")
+        return
+
+    videos = result.get("videos", [])
+    total = result.get("total", 0)
+    print(f"  🎬 获取到 {total} 个视频")
+
+    if not videos:
+        print("📭 没有找到历史记录")
+        return
+
+    for v in videos[:5]:
+        print(f"    [{v['id']}] {v['title'][:45]}")
+    if len(videos) > 5:
+        print(f"    ... 还有 {len(videos)-5} 个")
+
+    # 保存到 history.json 和 todolist.txt
+    hist = load_hist()
+    new_ids = []
+    for v in videos:
+        vid = v["id"]
+        if vid in hist:
+            if not hist[vid].get("processed"):
+                new_ids.append(vid)
+            continue
+
+        meta = get_video_meta(vid)
+        if meta:
+            meta["category"] = "历史记录"
+            meta["fetched_at"] = str(date.today())
+            meta["processed"] = False
+            meta["note"] = "来自 gethistory"
+            hist[vid] = meta
+            new_ids.append(vid)
+        else:
+            hist[vid] = {
+                "id": vid,
+                "title": v.get("title", ""),
+                "url": f"https://www.youtube.com/watch?v={vid}",
+                "channel_name": v.get("channel", ""),
+                "channel_id": v.get("channelId", ""),
+                "category": "历史记录",
+                "fetched_at": str(date.today()),
+                "processed": False,
+                "note": "来自 gethistory（无元数据）"
+            }
+            new_ids.append(vid)
+
+    if new_ids:
+        save_hist(hist)
+        lines = [f"https://www.youtube.com/watch?v={vid}" for vid in new_ids]
+        todo_append(lines)
+        print(f"\n✅ 添加 {len(new_ids)} 个视频到 todolist.txt")
+    else:
+        print("\n📭 没有新视频（均已存在或已处理）")
+
 
 def cmd_stats():
     sub = load_sub()
@@ -568,6 +796,7 @@ if __name__ == "__main__":
         "cron": lambda: cmd_cron(),
         "flush": lambda: cmd_flush(),
         "stats": lambda: cmd_stats(),
+        "gethistory": lambda: cmd_gethistory(),
     }
     if cmd in h:
         if cmd in ("subscribe",) and len(sys.argv) < 4:

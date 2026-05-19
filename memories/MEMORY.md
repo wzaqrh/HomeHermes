@@ -9,10 +9,8 @@ User preferences and installed skills:
 §
 notebooklm-to-brainvault 技能：YouTube/网页 → NotebookLM → brain-vault。token保护模式ON（.env配置），>10min视频NotebookLM失败则跳过。NotebookLM CLI需用-n显式指定notebook（use上下文会漂移）。generate report瞬态失败可重试。本地字幕fallback仅对≤10min视频执行。
 §
-用户当前网络访问（东方财富/百度）均失败，无法获取实时行情数据，后续查询A股相关股票需提前确认网络状态
-§
 用户Home Assistant中连接的小米小爱音箱设备名为hermes1，对应实体ID：1. 播放控制实体：media_player.xiaomi_l05b_ee79_play_control；2. 文本播报实体：text.xiaomi_l05b_ee79_play_text；3. 指令执行实体：text.xiaomi_l05b_ee79_execute_text_directive；4. 唤醒按钮实体：button.xiaomi_l05b_ee79_wake_up。该设备频繁出现连接不稳定问题，会在`idle`和`unavailable`状态之间反复切换，用户会收到Home Assistant的状态变更告警，且设备通常会自动恢复连接。
 §
 youtubd重构：subscribe.json（订阅+权重1-5、fetch_limit=100）、history.json（map<videoId,info>）、todolist.txt（累计追加）、cron_task.json（up_list=[] 或[{name,weight}]）。manage.py命令：subscribe/unsubscribe/weight/fetch/new/mark/cron/loadlist/flush/stats。cron每日10点加权随机抽N个。强制覆盖：新进程kill旧flush/cron。NotebookLM必须串行禁用delegate_task，耐心等待用sleep+process wait（15/30/60min步进最多16次，之后ask）。等待时不处理N+1。已关注13+频道。字幕抓不到直接失败不用description。
 §
-mcp-chrome技能使用注意事项：1. 无需手动执行mcp-chrome-bridge start，服务器已随插件自动运行；2. 验证服务器状态：访问http://127.0.0.1:12306/ping返回pong即正常；3. 常见错误Invalid MCP request or session.：需重新连接Chrome插件（断开后再点击连接）；4. 正确请求头为Content-Type: application/json，工具方法名如get_windows_and_tabs、chrome_navigate；5. 错误命令：mcp-chrome-bridge start 官方不存在
+mcp-chrome bridge singleton MCP server: edited `dist/mcp/mcp-server.js` to always create fresh Server (removed singleton guard). After bridge restart, extension may not auto-connect — user clicks Connect in popup (sends CONNECT_NATIVE, not just ENSURE_NATIVE). CDP port 9222 bound but returns 404 on all endpoints. Prefer Hermes native MCP client via mcp_servers in config.yaml over manual curl.

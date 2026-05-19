@@ -11,3 +11,5 @@ CLI power user, vault: ~/MyDoc/brain-vault (Obsidian). Pref: agent-to-agent JSON
 用户要求：总结YouTube视频时如果抓不到字幕就直接失败，不能用视频description代替。description没有内容价值，宁可不存。
 §
 CLI power user, vault: ~/MyDoc/brain-vault (Obsidian). Pref: agent-to-agent (JSON), cost-conscious (NotebookLM free > local AI), token protect ON (>10min no-transcript=skip, never description). Pipeline: youtubd→summarize→brain-vault, cron, channels 1-5 weighted. PREFERS direct tool calls over manual. CRITICAL: source skills from GitHub first — never build wheels without search.
+§
+用户期望：遇到复杂问题时，先查阅已有的报告/记录/方案的参考资料，而不是盲目尝试各种方法。如果确实无法解决，直接报告"不会"或"做不到"，不要浪费步骤在错误的路径上反复试探。

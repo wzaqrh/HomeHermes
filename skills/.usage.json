@@ -38,6 +38,19 @@
     "use_count": 7,
     "view_count": 7
   },
+  "chrome-cdp-local-interaction": {
+    "archived_at": null,
+    "created_at": "2026-05-19T02:05:10.267873+00:00",
+    "created_by": null,
+    "last_patched_at": null,
+    "last_used_at": "2026-05-19T02:05:10.269943+00:00",
+    "last_viewed_at": "2026-05-19T02:05:10.267927+00:00",
+    "patch_count": 0,
+    "pinned": false,
+    "state": "active",
+    "use_count": 1,
+    "view_count": 1
+  },
   "cli-search-troubleshooting-and-alternative-data-sourcing": {
     "archived_at": null,
     "created_at": "2026-05-12T08:29:27.563741+00:00",
@@ -55,9 +68,22 @@
     "archived_at": null,
     "created_at": "2026-05-14T03:11:33.617005+00:00",
     "created_by": null,
+    "last_patched_at": "2026-05-19T03:08:54.087882+00:00",
+    "last_used_at": "2026-05-19T03:47:24.075734+00:00",
+    "last_viewed_at": "2026-05-19T03:47:24.073072+00:00",
+    "patch_count": 19,
+    "pinned": false,
+    "state": "active",
+    "use_count": 9,
+    "view_count": 9
+  },
+  "mcporter": {
+    "archived_at": null,
+    "created_at": "2026-05-19T02:25:29.890887+00:00",
+    "created_by": null,
     "last_patched_at": null,
-    "last_used_at": "2026-05-14T03:11:33.618738+00:00",
-    "last_viewed_at": "2026-05-14T03:11:33.617050+00:00",
+    "last_used_at": "2026-05-19T02:25:29.893166+00:00",
+    "last_viewed_at": "2026-05-19T02:25:29.890910+00:00",
     "patch_count": 0,
     "pinned": false,
     "state": "active",
@@ -69,13 +95,13 @@
     "created_at": "2026-05-11T04:08:36.154242+00:00",
     "created_by": null,
     "last_patched_at": "2026-05-18T10:09:41.822887+00:00",
-    "last_used_at": "2026-05-18T10:09:14.608931+00:00",
-    "last_viewed_at": "2026-05-18T10:09:14.606600+00:00",
+    "last_used_at": "2026-05-19T02:07:43.352334+00:00",
+    "last_viewed_at": "2026-05-19T02:07:43.350064+00:00",
     "patch_count": 13,
     "pinned": false,
     "state": "active",
-    "use_count": 31,
-    "view_count": 21
+    "use_count": 33,
+    "view_count": 22
   },
   "qiaomu-anything-to-notebooklm": {
     "archived_at": null,
@@ -160,13 +186,13 @@
     "created_at": "2026-05-11T03:38:21.246747+00:00",
     "created_by": null,
     "last_patched_at": "2026-05-18T05:33:44.180683+00:00",
-    "last_used_at": "2026-05-18T10:09:49.043826+00:00",
-    "last_viewed_at": "2026-05-18T10:09:49.041137+00:00",
+    "last_used_at": "2026-05-19T04:00:00.985799+00:00",
+    "last_viewed_at": "2026-05-19T04:00:00.983552+00:00",
     "patch_count": 40,
     "pinned": false,
     "state": "active",
-    "use_count": 59,
-    "view_count": 48
+    "use_count": 63,
+    "view_count": 51
   },
   "youtube-summary-to-brain-vault": {
     "archived_at": null,

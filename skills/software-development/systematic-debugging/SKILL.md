@@ -57,6 +57,45 @@ You MUST complete each phase before proceeding to the next.
 
 ---
 
+## Phase 0: Consult Existing Knowledge
+
+**BEFORE any investigation, check what's already known.**
+
+When tackling a known system (Chrome bridge, youtube CLI, etc.), searching randomly wastes time and re-discovers solutions that already exist. The user's time is finite — make every tool call count.
+
+### 1. Check Existing Reports
+
+```bash
+ls ~/reports/*.md 2>/dev/null | grep -i <issue-keyword>
+```
+
+Read the full content of any relevant reports. They document prior debugging sessions, known workarounds, established fixes, and pitfalls.
+
+### 2. Search Related Skills
+
+Scan available skills for anything relevant to the problem domain. Load them with `skill_view()` — don't skim, read the full content. Skills exist because someone already figured out the approach.
+
+### 3. Search Memory
+
+Check memory entries for relevant facts, workarounds, or environment quirks. The user's past sessions may have already solved this exact problem.
+
+### 4. Search Session History
+
+Use `session_search()` to look for previous discussions of the same symptom, tool, or error message.
+
+### 5. Only Then Start Investigation
+
+If nothing is found, proceed to Phase 1. If something IS found, use it as your starting point — don't re-derive it.
+
+**DO NOT:**
+- Start random investigation without checking existing knowledge first
+- Kill and restart services multiple times hoping for different results
+- Try every possible approach in sequence without reading what worked before
+- Ask the user to reconnect/disconnect things without knowing the root cause
+- Use `execute_code` before `terminal` for debugging (execute_code has session isolation — terminal reflects the real system state)
+
+---
+
 ## Phase 1: Root Cause Investigation
 
 **BEFORE attempting ANY fix:**
@@ -310,6 +349,7 @@ If you catch yourself thinking:
 
 | Phase | Key Activities | Success Criteria |
 |-------|---------------|------------------|
+| **0. Consult** | Check reports, skills, memory, session history for prior knowledge | Know what's already known — don't re-derive |
 | **1. Root Cause** | Read errors, reproduce, check changes, gather evidence, trace data flow | Understand WHAT and WHY |
 | **2. Pattern** | Find working examples, compare, identify differences | Know what's different |
 | **3. Hypothesis** | Form theory, test minimally, one variable at a time | Confirmed or new hypothesis |
