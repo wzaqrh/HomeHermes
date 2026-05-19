@@ -126,6 +126,27 @@ def get_video_meta(video_id):
     except: return None
 
 
+# ─── 强制覆盖模式 ─────────────────────────
+
+def kill_previous_flush():
+    """杀掉之前启动的 flush/cron 进程（新启动的覆盖旧的）"""
+    import signal as _sig
+    my_pid = str(os.getpid())
+    script = os.path.abspath(__file__)
+    r = subprocess.run(
+        ["pgrep", "-f", rf"python3.*{script}.*(flush|cron)"],
+        capture_output=True, text=True, timeout=10
+    )
+    for pid_str in r.stdout.strip().split("\n"):
+        pid = pid_str.strip()
+        if pid and pid != my_pid:
+            try:
+                os.kill(int(pid), _sig.SIGTERM)
+                print(f"  🧹 已干掉旧进程 PID={pid}")
+            except (ProcessLookupError, ValueError):
+                pass
+
+
 # ─── 命令实现 ─────────────────────────────────
 
 def cmd_list():
@@ -272,6 +293,7 @@ def cmd_loadlist(filepath=None):
 
 def cmd_cron():
     """定时任务入口：fetch + 按权重随机挑选 N 个写入 todolist"""
+    kill_previous_flush()
     import random
     cron = json.load(open(SKILL_DIR / "cron_task.json"))
     sub = load_sub()
@@ -389,6 +411,7 @@ def cmd_flush():
     全自动串行处理 todolist 所有视频。
     逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空 todolist。
     """
+    kill_previous_flush()
     import subprocess as _sp, json as _json, time as _time, os as _os
 
     if not TODO_PATH.exists() or not TODO_PATH.stat().st_size:

@@ -127,6 +127,54 @@ NotebookLM CLI 不支持并发操作。多个 agent 同时调用会导致：
 
 **必须串行处理**，一次只处理一个视频。不要用 `delegate_task` 或其他并行机制。
 
+### 批量处理策略：共享 notebook
+处理多个视频时，**不要**每个视频新建一个 notebook。有两个风险：
+1. `notebooklm create` 的 RPC 端点偶尔服务器端故障（`RPC CREATE_NOTEBOOK failed / Invalid argument`）
+2. 大量残留 notebook 需要手动清理
+
+正确做法：**创建一个共享 notebook 处理所有视频**：
+
+```bash
+# 只创建一次
+notebooklm create "今日份" -n BATCH_ID
+
+# 逐个加源 → 生成 → 下载 → 删源 → 下一个
+notebooklm source add <URL1> -n BATCH_ID
+notebooklm generate report -n BATCH_ID → 下载 → source remove
+
+notebooklm source add <URL2> -n BATCH_ID
+notebooklm generate report -n BATCH_ID → 下载 → source remove
+```
+
+如果 `create` 挂了（RPC 失败），用已有的 notebook ID 前缀照样能加源和生成。
+
+### 强制覆盖模式（新启动的干掉旧的）
+`flush` 和 `cron` 等长时间运行的任务，启动时自动清理之前残留的同类进程：
+
+```python
+import subprocess, os, signal
+
+def kill_previous_flush():
+    """杀掉之前启动的 flush/cron 进程"""
+    my_pid = os.getpid()
+    script = os.path.abspath(__file__)
+    # 查找同一脚本的其他进程
+    r = subprocess.run(
+        ["pgrep", "-f", f"python3.*{script}.*(flush|cron)"],
+        capture_output=True, text=True, timeout=10
+    )
+    for pid_str in r.stdout.strip().split("\n"):
+        pid = pid_str.strip()
+        if pid and pid != str(my_pid):
+            try:
+                os.kill(int(pid), signal.SIGTERM)
+                print(f"  🧹 已干掉旧进程 PID={pid}")
+            except (ProcessLookupError, ValueError):
+                pass
+```
+
+`manage.py` 的 `flush` 和 `cron` 命令入口处调用此函数。laocl的进程看到新进程启动自动退出。
+
 ### -n 参数位置（重要）
 `-n / --notebook` 必须放在**子命令之后**：
 ```
@@ -176,6 +224,25 @@ else:
 ```bash
 notebooklm ask "请从视频内容生成结构化中文摘要" -n <notebook_id>
 ```
+
+### 已知错误
+
+全部 CLI 已知陷阱见 `references/cli-pitfalls.md`。常见问题速查：
+
+**`Error: API returned no data for URL: ...`**
+`notebooklm source add` 对某些 YouTube 视频返回此错误。这是 YouTube 侧临时性问题（视频编码/地域/反爬），不是 NotebookLM 的问题。
+- 重试通常无效
+- 换一个视频通常就能加上
+- 不影响其他视频的处理
+
+**`RPC CREATE_NOTEBOOK failed / Invalid argument`**
+`notebooklm create` 的 Google 服务端端点偶发故障。此时已有 notebook 仍然可用（`-n <existing_id>` 能正常加源和生成）。用共享 notebook 策略绕过。
+
+**`Unknown language code: zh-CN`**
+NotebookLM 不支持 `zh-CN`，正确写法是 `zh_Hans`。
+
+**`Generation failed - no artifact_id returned`**
+`generate report` 的瞬态失败。重试即可，无需切换 notebook。
 
 ### 文件路径
 Sub-agents 必须使用**绝对路径** `~/MyDoc/brain-vault/` 保存文件。不能缩写为 `~/brain-vault/`，不能自己创建子目录（如 `reports/`）。

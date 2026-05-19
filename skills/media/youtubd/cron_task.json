@@ -57,6 +57,6 @@
       "weight": 3
     }
   ],
-  "fetch_count": 5,
+  "fetch_count": 25,
   "schedule": "0 9 * * *"
 }

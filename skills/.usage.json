@@ -4,13 +4,13 @@
     "created_at": "2026-05-15T02:13:43.755074+00:00",
     "created_by": "agent",
     "last_patched_at": "2026-05-15T02:14:06.453759+00:00",
-    "last_used_at": "2026-05-15T02:14:13.901147+00:00",
-    "last_viewed_at": "2026-05-15T02:14:13.898785+00:00",
+    "last_used_at": "2026-05-18T02:32:40.419441+00:00",
+    "last_viewed_at": "2026-05-18T02:32:40.417223+00:00",
     "patch_count": 2,
     "pinned": false,
     "state": "active",
-    "use_count": 1,
-    "view_count": 1
+    "use_count": 2,
+    "view_count": 2
   },
   "a-stock-tradingagents-quickstart": {
     "archived_at": null,
@@ -30,13 +30,13 @@
     "created_at": "2026-05-14T09:36:35.303922+00:00",
     "created_by": "agent",
     "last_patched_at": "2026-05-14T10:11:13.168764+00:00",
-    "last_used_at": "2026-05-14T10:11:31.735540+00:00",
-    "last_viewed_at": "2026-05-14T10:11:31.728588+00:00",
+    "last_used_at": "2026-05-18T02:32:40.438635+00:00",
+    "last_viewed_at": "2026-05-18T02:32:40.435814+00:00",
     "patch_count": 9,
     "pinned": false,
     "state": "active",
-    "use_count": 6,
-    "view_count": 6
+    "use_count": 7,
+    "view_count": 7
   },
   "cli-search-troubleshooting-and-alternative-data-sourcing": {
     "archived_at": null,
@@ -68,14 +68,14 @@
     "archived_at": null,
     "created_at": "2026-05-11T04:08:36.154242+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-15T14:00:24.921925+00:00",
-    "last_used_at": "2026-05-16T03:29:12.011349+00:00",
-    "last_viewed_at": "2026-05-16T03:29:12.009747+00:00",
-    "patch_count": 8,
+    "last_patched_at": "2026-05-18T10:09:41.822887+00:00",
+    "last_used_at": "2026-05-18T10:09:14.608931+00:00",
+    "last_viewed_at": "2026-05-18T10:09:14.606600+00:00",
+    "patch_count": 13,
     "pinned": false,
     "state": "active",
-    "use_count": 23,
-    "view_count": 16
+    "use_count": 31,
+    "view_count": 21
   },
   "qiaomu-anything-to-notebooklm": {
     "archived_at": null,
@@ -89,6 +89,19 @@
     "state": "active",
     "use_count": 1,
     "view_count": 1
+  },
+  "small-business-internal-accounting": {
+    "archived_at": null,
+    "created_at": "2026-05-17T11:03:04.080812+00:00",
+    "created_by": "agent",
+    "last_patched_at": "2026-05-17T11:03:23.824046+00:00",
+    "last_used_at": "2026-05-18T02:32:40.487701+00:00",
+    "last_viewed_at": "2026-05-18T02:32:40.486111+00:00",
+    "patch_count": 1,
+    "pinned": false,
+    "state": "active",
+    "use_count": 2,
+    "view_count": 2
   },
   "tradingagents-runner": {
     "archived_at": null,
@@ -116,44 +129,57 @@
     "use_count": 1,
     "view_count": 1
   },
+  "xiaomi-ai-speaker-homeassistant-frequent-disconnect-fix": {
+    "archived_at": null,
+    "created_at": "2026-05-17T05:25:59.571937+00:00",
+    "created_by": null,
+    "last_patched_at": null,
+    "last_used_at": "2026-05-17T05:25:59.578339+00:00",
+    "last_viewed_at": "2026-05-17T05:25:59.572831+00:00",
+    "patch_count": 0,
+    "pinned": false,
+    "state": "active",
+    "use_count": 1,
+    "view_count": 1
+  },
   "yewtube": {
     "archived_at": null,
     "created_at": "2026-05-11T02:28:47.015058+00:00",
     "created_by": "agent",
     "last_patched_at": null,
-    "last_used_at": null,
-    "last_viewed_at": null,
+    "last_used_at": "2026-05-18T02:32:40.519626+00:00",
+    "last_viewed_at": "2026-05-18T02:32:40.517970+00:00",
     "patch_count": 0,
     "pinned": false,
     "state": "active",
-    "use_count": 0,
-    "view_count": 0
+    "use_count": 1,
+    "view_count": 1
   },
   "youtubd": {
     "archived_at": null,
     "created_at": "2026-05-11T03:38:21.246747+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-16T03:29:26.584291+00:00",
-    "last_used_at": "2026-05-16T03:29:07.813086+00:00",
-    "last_viewed_at": "2026-05-16T03:29:07.811295+00:00",
-    "patch_count": 33,
+    "last_patched_at": "2026-05-18T05:33:44.180683+00:00",
+    "last_used_at": "2026-05-18T10:09:49.043826+00:00",
+    "last_viewed_at": "2026-05-18T10:09:49.041137+00:00",
+    "patch_count": 40,
     "pinned": false,
     "state": "active",
-    "use_count": 46,
-    "view_count": 38
+    "use_count": 59,
+    "view_count": 48
   },
   "youtube-summary-to-brain-vault": {
     "archived_at": null,
     "created_at": "2026-05-11T02:02:50.029155+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-11T05:15:45.474586+00:00",
-    "last_used_at": "2026-05-14T03:46:27.797019+00:00",
-    "last_viewed_at": "2026-05-14T03:46:27.793760+00:00",
-    "patch_count": 1,
+    "last_patched_at": "2026-05-18T05:34:00.581024+00:00",
+    "last_used_at": "2026-05-18T05:33:49.189761+00:00",
+    "last_viewed_at": "2026-05-18T05:33:49.187201+00:00",
+    "patch_count": 2,
     "pinned": false,
     "state": "active",
-    "use_count": 5,
-    "view_count": 5
+    "use_count": 6,
+    "view_count": 6
   },
   "youtube-to-notebooklm-summary": {
     "archived_at": null,

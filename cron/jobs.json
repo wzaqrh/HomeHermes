@@ -17,21 +17,21 @@
       "context_from": null,
       "schedule": {
         "kind": "cron",
-        "expr": "0 9 * * *",
-        "display": "0 9 * * *"
+        "expr": "0 10 * * *",
+        "display": "0 10 * * *"
       },
-      "schedule_display": "0 9 * * *",
+      "schedule_display": "0 10 * * *",
       "repeat": {
         "times": null,
-        "completed": 7
+        "completed": 10
       },
       "enabled": true,
       "state": "scheduled",
       "paused_at": null,
       "paused_reason": null,
       "created_at": "2026-05-12T12:37:34.121925+08:00",
-      "next_run_at": "2026-05-17T09:00:00+08:00",
-      "last_run_at": "2026-05-16T10:47:32.927458+08:00",
+      "next_run_at": "2026-05-19T10:00:00+08:00",
+      "last_run_at": "2026-05-18T11:05:13.994668+08:00",
       "last_status": "ok",
       "last_error": null,
       "last_delivery_error": null,
@@ -45,5 +45,5 @@
       "workdir": null
     }
   ],
-  "updated_at": "2026-05-16T10:47:32.972928+08:00"
+  "updated_at": "2026-05-18T11:05:13.995250+08:00"
 }

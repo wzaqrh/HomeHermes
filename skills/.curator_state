@@ -1,9 +1,9 @@
 {
-  "last_report_path": null,
-  "last_run_at": "2026-05-10T15:00:12.866255+00:00",
-  "last_run_duration_seconds": null,
-  "last_run_summary": "deferred first run — curator seeded, will run after one interval; use `hermes curator run --dry-run` to preview now",
+  "last_report_path": "/home/bdwillwin/.hermes/logs/curator/20260518-023205",
+  "last_run_at": "2026-05-18T02:32:05.144862+00:00",
+  "last_run_duration_seconds": 101.826707,
+  "last_run_summary": "auto: no changes; llm: Confirmation complete. Both `youtube-content` and `youtubd` are bundled skills (not agent-created), so per Rule 1 they're untouchable.\n\n## Final Assessment\n\nAfter thorough analysis of all 4 agent-created skills against the full 134-skill li…",
   "last_run_summary_shown_at": null,
   "paused": false,
-  "run_count": 0
+  "run_count": 1
 }

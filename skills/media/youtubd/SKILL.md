@@ -47,35 +47,6 @@ yt-dlp "ytsearch{N}:{query}" --flat-playlist --dump-json
 2. 用 `python3 -c` 提取关键字段，组装成统一格式的 JSON 数组
 3. 返回给用户 / 或直接衔接下游 skill
 
-**示例实现**：
-```python
-import subprocess, json
-
-result = subprocess.run(
-    ["yt-dlp", "ytsearch10:linux terminal", "--flat-playlist", "--dump-json"],
-    capture_output=True, text=True, timeout=30
-)
-
-videos = []
-for line in result.stdout.strip().split("\n"):
-    if not line: continue
-    raw = json.loads(line)
-    videos.append({
-        "id": raw["id"],
-        "title": raw["title"],
-        "url": f"https://www.youtube.com/watch?v={raw['id']}",
-        "channel": raw.get("channel", ""),
-        "channel_id": raw.get("channel_id", ""),
-        "duration": raw.get("duration", 0),
-        "view_count": raw.get("view_count", 0),
-        "upload_date": raw.get("upload_date", ""),
-        "source_type": "search"
-    })
-
-# videos 就是标准输出的 JSON 数组
-print(json.dumps(videos, indent=2, ensure_ascii=False))
-```
-
 ---
 
 ## 操作 2：爬频道视频
@@ -100,8 +71,6 @@ yt-dlp "https://www.youtube.com/playlist?list=UU{channel_id[2:]}" --flat-playlis
 
 > 规则：channel_id 去掉 `UC` 前缀，加上 `UU`，就是该频道的上传播放列表 ID。
 
-输出格式同统一规范，`source_type` 为 `"channel"`。
-
 ---
 
 ## 操作 3：爬播放列表
@@ -112,67 +81,13 @@ yt-dlp "https://www.youtube.com/playlist?list=UU{channel_id[2:]}" --flat-playlis
 yt-dlp "https://www.youtube.com/playlist?list={PLAYLIST_ID}" --flat-playlist --dump-json
 ```
 
-输出格式同统一规范，`source_type` 为 `"playlist"`。
-
----
-
-## 链式调用（与其他 skill 衔接）
-
-youtubd 的核心价值是**产出可供下游消费的 JSON**。典型链路：
-
-```
-youtubd（搜视频）
-  → JSON [{id, title, url, ...}]
-  → 遍历 url，调用 youtube-content 获取字幕
-  → 调用 notebooklm-to-brainvault 总结并保存
-```
-
-**示例：搜视频 → 总结前3个 → 存到 brain-vault**
-
-```python
-import subprocess, json
-
-# Step 1: youtubd 搜索
-result = subprocess.run(
-    ["yt-dlp", "ytsearch3:AI programming", "--flat-playlist", "--dump-json"],
-    capture_output=True, text=True, timeout=30
-)
-videos = []
-for line in result.stdout.strip().split("\n"):
-    if not line: continue
-    raw = json.loads(line)
-    videos.append({
-        "id": raw["id"],
-        "title": raw["title"],
-        "url": f"https://www.youtube.com/watch?v={raw['id']}",
-        "channel": raw.get("channel", ""),
-        "duration": raw.get("duration", 0),
-        "source_type": "search"
-    })
-
-# Step 2: 对每个视频调用 youtube-content 获取字幕并总结
-# 然后 notebooklm-to-brainvault 保存
-# （由 agent 在后续工具调用中完成）
-```
-
-**Agent 调用链示例（自然语言→翻译成工具调用）**：
-
-```
-用户："搜一下AI编程视频，把前3个总结保存到brain-vault"
-Agent 行为：
-  1. youtubd 搜索 → 得到 JSON 数组（含 url）
-  2. 取前3个 url，逐个调用 youtube-content skill（抓字幕）
-  3. 对字幕做 AI 总结
-  4. 存到 ~/MyDoc/brain-vault/ 目录
-```
-
 ---
 
 ## 数据文件
 
 ### subscribe.json — 订阅频道
 
-按分类组织，每个频道有权重 1-5（默认 3）：
+按分类组织，每个频道有权重 1-5（默认 3）和 fetch_limit（默认 100）：
 
 ```json
 {
@@ -181,11 +96,14 @@ Agent 行为：
       "name": "魏知超啥书都读",
       "url": "https://www.youtube.com/@weizhichao",
       "added": "2026-05-11",
-      "weight": 3
+      "weight": 3,
+      "fetch_limit": 100
     }
   }
 }
 ```
+
+> `fetch_limit` 控制 `manage.py fetch` 和 `manage.py cron` 每次拉取该频道最新多少个视频。值越大候选池越广，但也越慢（每个视频需发一个 yt-dlp 请求）。
 
 ### history.json — 历史拉取记录
 
@@ -209,13 +127,16 @@ Agent 行为：
 }
 ```
 
+> 注意：history.json 的值**不包含 `id` 字段**——id 就是 key 本身。遍历时用 `hist.items()` 而不是 `hist.values()`，否则拿不到 id。
+
 ### todolist.txt — 待处理队列（累计模式）
 
-累计模式：
-- `fetch` / `loadlist` / `cron` 新增的视频 **追加**到末尾，不覆盖已有内容
-- `mark <视频ID>` 只标记 processed，**不操作 todolist**
-- `flush` 一次性处理所有条目，处理完清空
-- 已存在的视频不会重复追加（自动去重）
+- `fetch` / `loadlist` / `cron` 新增的视频 **追加**到末尾，不覆盖
+- `mark <视频ID>` 只标记 history 中的 processed，**不操作 todolist**
+- `flush` 一次性串行处理所有条目（NotebookLM → brain-vault），完成后清空
+- 自动去重
+
+---
 
 ## 定时任务（cron）
 
@@ -228,30 +149,30 @@ Agent 行为：
     {"name": "LT視界", "weight": 1}
   ],
   "fetch_count": 5,
-  "fetch_limit": 100,
-  "schedule": "0 9 * * *"
+  "schedule": "0 10 * * *"
 }
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `up_list` | 频道列表，每项含 `name`（名称/ID）和 `weight`（权重1-5） |
-| `fetch_count` | 每次随机抽取几个视频到 todolist |
-| `fetch_limit` | 每个频道拉取的最新视频数（默认100），越大候选池越广 |
+| `up_list` | 频道列表，每项含 `name`（订阅名称）和 `weight`（权重1-5） |
+| `fetch_count` | 每次加权随机抽取几个视频到 todolist |
 | `schedule` | 参考 cron 表达式，实际调度由 `/cron add` 设置 |
 
+> `fetch_limit`（每频道拉取数）在 **subscribe.json 每个频道的 `fetch_limit` 字段**中配置，不在 cron_task.json 里。
+
 **工作原理：**
-1. 拉取所有目标频道的最新视频
-2. 按权重（subscribe.json 中的 weight）加权随机抽取 N 个
-3. 写入 todolist.txt
+1. 拉取所有目标频道的最新视频（每个频道 fetch_limit 条）
+2. 按权重加权随机抽取 fetch_count 个
+3. 追加写入 todolist.txt
 
-**设置定时任务（配合 Hermes /cron add）：**
+**设置定时任务（配合 /cron add）：**
 
-⚠️ **必做：必须指定 `--model` 和 `--skills`**，否则 cron 调度器读不到 API key 和关联 skill。参考 `references/cron-pitfalls.md` 了解完整说明和故障排查。
+⚠️ **必须指定 `--model` 和 `--skills`**，否则 cron 调度器读不到 API key。参考 `references/cron-pitfalls.md`。
 
 ```bash
-/cron add "youtubd 每日拉取+总结" \
-  --schedule "0 9 * * *" \
+/cron add "youtubd 每日拉取" \
+  --schedule "0 10 * * *" \
   --model '{"model":"deepseek-v4-flash","provider":"deepseek"}' \
   --skills youtubd,notebooklm-to-brainvault \
   --toolsets terminal,file,web \
@@ -262,6 +183,8 @@ Agent 行为：
 ```bash
 python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 ```
+
+---
 
 ## 管理脚本
 
@@ -274,35 +197,46 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 | `subscribe 分类 频道名` | 订阅频道（权重默认 3） |
 | `weight 频道名/ID 1-5` | 设置频道权重 |
 | `unsubscribe 频道名/ID` | 取消订阅 |
-| `fetch [分类]` | 拉取最新视频到 history |
+| `fetch [分类]` | 拉取最新视频到 history + 追加到 todolist |
 | `new [分类]` | 列出未处理的视频 |
-| `mark 视频ID` | 标记为已处理 |
-| `loadlist [文件路径]` | 从txt文件导入（默认 todolist.txt） |
-| `cron` | 定时任务：fetch + 加权随机抽 N 个写入 todolist |
-| `flush` | 处理 todolist 所有视频，标记 processed，输出 JSON，清空文件 |
+| `mark 视频ID` | 标记 history 中 processed=true（不操作 todolist） |
+| `loadlist [文件路径]` | 从 txt 导入视频列表（默认 todolist.txt） |
+| `cron` | fetch + 加权随机抽 N 个 → 追加到 todolist |
+| `flush` | **全自动串行处理** todolist 所有视频：逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空 todolist。可后台运行。 |
 
-**Agent 工作流示例**：
-1. `manage.py fetch` — 检查所有关注的频道，新视频追加到 history 和 todolist
-2. `manage.py new` — 看看哪些还没处理
-3. 对感兴趣的调用 notebooklm-to-brainvault 处理
-4. `manage.py flush` — 批量标记已处理并清空 todolist
+**强制覆盖模式**：`flush` 和 `cron` 启动时自动调用 `kill_previous_flush()`，干掉同类旧进程。保证同一时间只有一个在跑。
+
+---
+
+## 链式调用
+
+```youtubd（爬视频）→ JSON [{url,...}] → notebooklm-to-brainvault（总结 → brain-vault）```
+
+`flush` 命令已将 notebooklm-to-brainvault 的完整流程内嵌，无需手动串接。对单条视频也可直接调用 notebooklm-to-brainvault 手动处理。
+
+---
 
 ## 注意事项
 
 - `--flat-playlist` 只取元数据不下载，速度快
-- 如需完整字段（description、tags 等），去掉 `--flat-playlist`，但单视频多一个请求
+- 如需完整字段（description、tags 等），去掉 `--flat-playlist`
 - 频道的 `@频道名/videos` 方式有时超时，推荐用 `UU` 播放列表方式
 - YouTube 限流（429）时等几秒重试
 - 单次搜索建议不超过50个结果
-- 订阅数据保存在 `subscribe.json`，历史记录在 `history.json`，待处理队列在 `todolist.txt`
-- 外部待处理列表可以用 `~/youtube_todo.txt`（每行一个视频ID或URL），然后 `loadlist` 导入
-- loadlist 导入的视频自动归类为 `"导入"`，处理后用 `mark` 标记自动从 todolist 移除
+- 外部待处理列表可以用 `~/youtube_todo.txt`，然后 `loadlist` 导入
+- loadlist 导入的视频自动归类为 `"导入"`
+- `mark` 只标记 history，**不操作 todolist**。要清空 todolist 用 `flush`
+- `flush` 全自动串行处理（NotebookLM → brain-vault），完成后自动清空 todolist
+- 后台运行 flush：`python3 scripts/manage.py flush &`（强制覆盖模式会自动干掉旧的）
 
 ## 文件概览
 
 | 文件 | 用途 |
 |------|------|
-| `subscribe.json` | 订阅频道（分类 → channel_id → {name, weight}） |
+| `subscribe.json` | 订阅频道（分类 → channel_id → {name, weight, fetch_limit}） |
 | `history.json` | 历史拉取记录（video_id → info 的 map） |
 | `todolist.txt` | 未处理视频的 URL 列表，累计追加，flush 后清空 |
 | `cron_task.json` | 定时任务配置（拉取范围、每次数量） |
+| `scripts/manage.py` | 管理脚本（订阅、拉取、处理全流程） |
+| `references/flush-autopilot.md` | flush 全自动管道详情（耐心等待、强制覆盖） |
+| `references/cron-pitfalls.md` | cron API key 故障排查 |
