@@ -185,14 +185,14 @@
     "archived_at": null,
     "created_at": "2026-05-11T03:38:21.246747+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-19T05:26:52.516048+00:00",
-    "last_used_at": "2026-05-19T05:26:09.948099+00:00",
-    "last_viewed_at": "2026-05-19T05:26:09.945848+00:00",
-    "patch_count": 44,
+    "last_patched_at": "2026-05-19T05:40:36.012256+00:00",
+    "last_used_at": "2026-05-19T05:40:21.376942+00:00",
+    "last_viewed_at": "2026-05-19T05:40:21.375193+00:00",
+    "patch_count": 46,
     "pinned": false,
     "state": "active",
-    "use_count": 66,
-    "view_count": 54
+    "use_count": 69,
+    "view_count": 57
   },
   "youtube-summary-to-brain-vault": {
     "archived_at": null,

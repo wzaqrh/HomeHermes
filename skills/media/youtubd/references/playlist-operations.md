@@ -69,6 +69,21 @@ yt-dlp --flat-playlist --dump-json \
 
 `--flat-playlist` 只取元数据不下视频，速度快。输出 JSON Lines 格式，每行一个视频。
 
+### 输出到文件
+
+默认追加到 `todolist.txt`（带完整 URL）。支持 `--output` 参数指定其他文件（纯视频 ID，一行一个）：
+
+```bash
+# 默认 → todolist.txt（完整 URL 格式）
+python3 manage.py importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ
+
+# 指定路径 → 纯视频 ID
+python3 manage.py importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ --output playlist.txt
+
+# 名称查找 + 指定路径
+python3 manage.py importplaylist 系统经济金融 --output playlist.txt
+```
+
 ### 合并到 history.json 和 todolist.txt
 
 - 自动去重：video_id 已存在则跳过

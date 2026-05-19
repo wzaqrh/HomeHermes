@@ -186,6 +186,27 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 
 ---
 
+## 工作原则
+
+### 优先使用现有 CLI 命令
+
+当需要测试或调用 youtubd 功能时，**优先使用已有的 `manage.py` 命令**。不要临时写 Python 脚本来绕过或重复实现已有命令的功能。
+
+已实现的命令（见下方）覆盖了搜索、订阅、历史、播放列表等核心场景。如果某个操作没有对应命令但 could 通过已有命令组合实现（如 `loadlist playlist.txt` 导入播放列表 ID 文件），先用组合方案。
+
+仅在以下情况写临时代码：
+1. 需要测试/验证一个尚未实现的功能点
+2. 已有命令真的无法完成需求（而不是因为输出格式不对或参数传错）
+
+### 命令设计规范
+
+新增命令时，输入/输出路径应作为可配置参数：
+
+- 默认写入 todolist.txt，但应支持 `--output <路径>` 指定其他文件
+- 不要硬编码输出目的地
+
+---
+
 ## 管理脚本
 
 命令：`python3 ~/.hermes/skills/media/youtubd/scripts/manage.py`
@@ -202,10 +223,10 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 | `mark <视频ID>` | 标记 history 中 processed=true（不操作 todolist） |
 | `loadlist [文件路径]` | 从 txt 导入视频列表（默认 todolist.txt） |
 | `cron` | fetch + 加权随机抽 N 个 → 追加到 todolist |
-| `flush` | **全自动串行处理** todolist 所有视频：逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空 todolist。可后台运行。 |
+| `flush [--todolist <路径>]` | **全自动串行处理** todolist 所有视频：逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空列表。默认处理 todolist.txt，可用 `--todolist` 指定其他文件。 |
 | `gethistory [数量]` | **拉取 YouTube 观看历史**（需 Chrome 运行 + MCP bridge），将视频追加到 todolist。默认 100 个。 |
 | `listplaylists` | **列出所有播放列表**（需 Chrome 运行 + MCP bridge） |
-| `importplaylist <ID/名称>` | **将播放列表内容全部导入 todolist.txt**（自动去重，支持 ID 或名称） |
+| `importplaylist <ID/名称> [--output <路径>]` | **将播放列表内容全部导入到指定文件**（默认 todolist.txt，--output 可指定其他路径） |
 
 **强制覆盖模式**：`flush` 和 `cron` 启动时自动调用 `kill_previous_flush()`，干掉同类旧进程。保证同一时间只有一个在跑。
 

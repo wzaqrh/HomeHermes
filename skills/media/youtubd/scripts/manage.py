@@ -531,15 +531,27 @@ def cmd_cron():
 
 
 def cmd_flush():
-    """全自动串行处理 todolist 所有视频（NotebookLM → brain-vault）"""
+    """全自动串行处理 todolist 所有视频（NotebookLM → brain-vault）
+
+    用法: flush
+           flush --todolist playlist1.txt
+    """
     kill_previous_flush()
     import subprocess as _sp, json as _json, time as _time, os as _os
 
-    if not TODO_PATH.exists() or not TODO_PATH.stat().st_size:
-        print("📭 todolist 为空或不存在")
+    # 解析 --todolist 参数
+    todo_path = TODO_PATH
+    args = sys.argv[2:]
+    for i, a in enumerate(args):
+        if a == '--todolist' and i + 1 < len(args):
+            todo_path = Path(os.path.abspath(args[i + 1]))
+            break
+
+    if not todo_path.exists() or not todo_path.stat().st_size:
+        print(f"📭 {todo_path.name} 为空或不存在")
         return
 
-    with open(TODO_PATH) as f:
+    with open(todo_path) as f:
         lines = [l.strip() for l in f if l.strip()]
 
     hist = load_hist()
@@ -649,7 +661,7 @@ def cmd_flush():
 
         _sp.run(["notebooklm", "delete", nb_id], capture_output=True, timeout=15)
 
-    open(TODO_PATH, "w").write("")
+    open(todo_path, "w").write("")
     print(f"\n📊 flush 完成:  ✅ {ok}  |  ❌ {fail}  |  ⏭ {skip}")
 
 
@@ -864,19 +876,33 @@ def cmd_listplaylists():
 
 
 def cmd_importplaylist():
-    """将播放列表内所有视频导入 todolist.txt
+    """将播放列表内所有视频导入 todolist.txt 或指定文件
 
     用法: importplaylist <播放列表ID 或 播放列表名>
            importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ
            importplaylist 系统经济金融
+           importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ --output playlist.txt
     """
     if len(sys.argv) < 3:
-        print("用法: importplaylist <播放列表ID 或 名称>")
+        print("用法: importplaylist <播放列表ID 或 名称> [--output <路径>]")
         print("示例: importplaylist PLVt93Bo6TqvyDyaVT_pDp2wcUfALtOtuJ")
-        print("      importplaylist 系统经济金融")
+        print("      importplaylist 系统经济金融 --output playlist.txt")
         return
 
-    query = " ".join(sys.argv[2:])
+    # 解析参数：提取 --output
+    args = sys.argv[2:]
+    query_parts = []
+    output_path = str(TODO_PATH)  # 默认 todolist.txt
+    i = 0
+    while i < len(args):
+        if args[i] == '--output' and i + 1 < len(args):
+            output_path = os.path.abspath(args[i + 1])
+            i += 2
+        else:
+            query_parts.append(args[i])
+            i += 1
+
+    query = " ".join(query_parts)
     print(f"🔍 正在查找播放列表: {query}")
 
     # 尝试 yt-dlp 直接爬播放列表
@@ -1006,9 +1032,20 @@ def cmd_importplaylist():
 
     if new_ids:
         save_hist(hist)
-        lines = [f"https://www.youtube.com/watch?v={vid}" for vid in new_ids]
-        todo_append(lines)
-        print(f"\n✅ 添加 {len(new_ids)} 个视频到 todolist.txt")
+        if output_path == str(TODO_PATH):
+            # 默认：追加到 todolist.txt（带 URL）
+            lines = [f"https://www.youtube.com/watch?v={vid}" for vid in new_ids]
+            todo_append(lines)
+            print(f"\n✅ 添加 {len(new_ids)} 个视频到 todolist.txt")
+        else:
+            # 指定路径：写入纯视频 ID 列表
+            output_dir = os.path.dirname(output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+            with open(output_path, "w") as f:
+                for vid in new_ids:
+                    f.write(f"{vid}\n")
+            print(f"\n✅ 导出 {len(new_ids)} 个视频到 {output_path}")
         for v in videos[:5]:
             print(f"  + [{v['id']}] {v['title'][:45]}")
         if len(videos) > 5:
