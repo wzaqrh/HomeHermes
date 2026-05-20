@@ -1,7 +1,7 @@
 ---
 name: youtubd
 category: media
-description: YouTube 数据采集技能。搜索视频、爬频道视频列表、爬播放列表。输出标准化JSON，可供其他skill链式调用（如notebooklm总结、保存到brain-vault等）。
+description: YouTube 数据采集技能。搜索视频、爬频道视频列表、爬播放列表。输出标准化JSON，可链式调用下游skill总结到brain-vault。
 ---
 
 # youtubd — YouTube Data Scraping
@@ -188,22 +188,21 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 
 ## 工作原则
 
-### 优先使用现有 CLI 命令
+### 优先使用现有命令，不写临时脚本绕路
 
-当需要测试或调用 youtubd 功能时，**优先使用已有的 `manage.py` 命令**。不要临时写 Python 脚本来绕过或重复实现已有命令的功能。
+| 场景 | 正确做法 | 错误做法 |
+|------|----------|----------|
+| 测试已有命令的功能 | 直接运行 `manage.py` 命令 | 写 Python 临时脚本重新实现 |
+| 输出格式不对 | 改参数（`--output`）或用管道 `\|` | 写代码解析重写 |
+| 终端 `>` 被拦截 | 换个写法再试，或写文件再用 | 临时绕路写 Python 脚本 |
 
-已实现的命令（见下方）覆盖了搜索、订阅、历史、播放列表等核心场景。如果某个操作没有对应命令但 could 通过已有命令组合实现（如 `loadlist playlist.txt` 导入播放列表 ID 文件），先用组合方案。
-
-仅在以下情况写临时代码：
-1. 需要测试/验证一个尚未实现的功能点
-2. 已有命令真的无法完成需求（而不是因为输出格式不对或参数传错）
+**核心原则：** `manage.py` 的命令已经覆盖了搜索、订阅、历史、播放列表等核心场景。要用它，不要绕它。若缺少某个参数（如 `--output`），可以扩展命令而不是写临时脚本。
 
 ### 命令设计规范
 
-新增命令时，输入/输出路径应作为可配置参数：
-
-- 默认写入 todolist.txt，但应支持 `--output <路径>` 指定其他文件
-- 不要硬编码输出目的地
+- 输出目的地应是可配置参数（如 `--output <路径>`），不应硬编码
+- `flush` 默认处理 todolist.txt，支持 `--todolist <路径>` 处理其他文件
+- `importplaylist` 默认追加到 todolist.txt，支持 `--output <路径>` 导出到独立文件
 
 ---
 
@@ -223,12 +222,22 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 | `mark <视频ID>` | 标记 history 中 processed=true（不操作 todolist） |
 | `loadlist [文件路径]` | 从 txt 导入视频列表（默认 todolist.txt） |
 | `cron` | fetch + 加权随机抽 N 个 → 追加到 todolist |
-| `flush [--todolist <路径>]` | **全自动串行处理** todolist 所有视频：逐个 NotebookLM 生成报告（含耐心等待重试），下载到 brain-vault，标记 processed，清空列表。默认处理 todolist.txt，可用 `--todolist` 指定其他文件。 |
-| `gethistory [数量]` | **拉取 YouTube 观看历史**（需 Chrome 运行 + MCP bridge），将视频追加到 todolist。默认 100 个。 |
+| `flush [--todolist <路径>]` | **全自动串行处理** todolist 所有视频：遍历列表逐条调 process_video.py，生成报告下载到 brain-vault，标记 processed，清空列表。默认 todolist.txt，可用 `--todolist` 指定其他文件。 |
+| `gethistory [数量]` | **拉取 YouTube 观看历史**（需 Chrome 运行 + MCP bridge） |
 | `listplaylists` | **列出所有播放列表**（需 Chrome 运行 + MCP bridge） |
-| `importplaylist <ID/名称> [--output <路径>]` | **将播放列表内容全部导入到指定文件**（默认 todolist.txt，--output 可指定其他路径） |
+| `importplaylist <ID/名称> [--output <路径>]` | **将播放列表内容全部导出到指定文件**（默认 todolist.txt，--output 可指定其他路径如 playlist.txt） |
 
-**强制覆盖模式**：`flush` 和 `cron` 启动时自动调用 `kill_previous_flush()`，干掉同类旧进程。保证同一时间只有一个在跑。
+### flush 与 cron 的 NotebookLM 处理差异
+
+| 特性 | cron（Hermes agent 驱动） | manage.py flush |
+|------|--------------------------|-----------------|
+| 加载 skill | `youtubd` + `notebooklm-to-brainvault` | 纯 Python subprocess，无 skill |
+| 重试策略 | 按 skill 指南分步等待 | 固定 sleep 循环 |
+| 配额等待 | 15/30/60min 步进 | 同上（硬编码） |
+| 执行主体 | Hermes agent | Python subprocess |
+| 可靠性 | 高（agent 根据上下文调整） | 中（硬编码逻辑） |
+
+**注意：** `manage.py flush` 直接调用 `notebooklm` CLI subprocess，没有 `notebooklm-to-brainvault` skill 的完整智能。批量处理建议用 cron 驱动。
 
 ---
 
@@ -237,6 +246,35 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 ```youtubd（爬视频）→ JSON [{url,...}] → notebooklm-to-brainvault（总结 → brain-vault）```
 
 `flush` 命令已将 notebooklm-to-brainvault 的完整流程内嵌，无需手动串接。对单条视频也可直接调用 notebooklm-to-brainvault 手动处理。
+
+---
+
+## YouTube 2025+ 新 UI 说明
+
+YouTube 新 UI 有两项关键变更：
+
+### richGridRenderer 替代 sectionListRenderer
+
+| 旧版 | 新版 |
+|------|------|
+| `sectionListRenderer` | `richGridRenderer` |
+| `contents[].itemSectionRenderer` | `contents[].richItemRenderer` |
+| `contents[].continuationItemRenderer` | 同左 |
+
+### lockupViewModel 替代 videoRenderer / playlistRenderer
+
+```javascript
+// 旧版
+item.playlistRenderer.playlistId
+item.videoRenderer.videoId
+
+// 新版
+item.lockupViewModel.contentId              // 统一 ID
+item.lockupViewModel.contentType            // "LOCKUP_CONTENT_TYPE_PLAYLIST" / "_VIDEO"
+item.lockupViewModel.metadata.lockupMetadataViewModel.title.content   // 标题
+```
+
+**影响：** 通过 MCP `chrome_javascript` 读 `window.ytInitialData` 时，需适配两种结构。`manage.py` 中的 JS 提取函数已做兼容。
 
 ---
 
@@ -265,55 +303,39 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 | `references/flush-autopilot.md` | flush 全自动管道详情（耐心等待、强制覆盖） |
 | `references/cron-pitfalls.md` | cron API key 故障排查 |
 | `references/gethistory-detail.md` | gethistory 实现细节、技术难点与 YouTube API 认证说明 |
-| `references/playlist-operations.md` | listplaylists / importplaylist 实现细节：YouTube 新 UI 的 lockupViewModel 结构、名称→ID 解析、yt-dlp 抓取 |
+| `references/playlist-operations.md` | listplaylists / importplaylist 实现细节 |
 
 ---
 
-## gethistory 详解
+## 子命令详解
+
+### gethistory — 拉取观看历史
 
 **命令：** `python3 scripts/manage.py gethistory [数量]`
 
-拉取当前已登录 Chrome 浏览器中的 YouTube 观看记录，自动加入 todolist.txt。
+通过 Chrome MCP bridge 读取已登录 YouTube 的观看记录，自动加入 todolist.txt。
 
-### 工作原理
-
+**工作原理：**
 1. 连接本地 Chrome MCP bridge (`http://127.0.0.1:12306/mcp`)
 2. 在 Chrome 中找到或打开 YouTube `/feed/history` 页面
 3. 通过 `chrome_javascript` 同步执行 JS，读取 `window.ytInitialData`
-4. 提取 ytInitialData 中的 `videoRenderer` → 获取 ID、标题、频道
+4. 提取 videoRenderer → 获取 ID、标题、频道
 5. 对新视频调用 `yt-dlp --dump-json` 获取完整元数据
 6. 写入 `history.json` 并追加到 `todolist.txt`
 
-### 依赖
+**关键发现 — YouTube API 认证限制：**
+YouTube API 需要 `SAPISID` cookie 的 hash 认证。浏览器 cookie 在 Linux 上用 Chrome 加密存储（AES-CBC + keyring），`browser-cookie3` 和 `yt-dlp --cookies-from-browser` 均无法完整解密。即使拿到 SAPISID 值，Python `requests` 调 API 仍返回 "Sign in"。**唯一可靠方式：通过浏览器环境（MCP chrome_javascript）执行 fetch() 或读取 ytInitialData。**
 
-- Chrome 浏览器正在运行（已登录 YouTube）
-- MCP bridge 正常运行（端口 12306 可访问）
-- Python 内置库：`json`, `urllib`, `re`, `datetime`
+**注意：** 通过 MCP bridge HTTP API 调 `chrome_javascript` 时，**不支持 async/await**。必须使用**同步 JS**（`return` 表达式）。只能读取页面初次加载的数据，无法通过 fetch() 加载更多内容。
 
-### 已知限制
+### listplaylists — 列出播放列表
 
-| 限制 | 原因 | 变通 |
-|------|------|------|
-| 只读取初始加载的 1-20 条 | YouTube 页面使用无限滚动，MCP bridge HTTP API 不支持 async/await | 多次运行 `gethistory` |
-| 无法获取 watch 时间戳 | ytInitialData 只包含视频元数据，不含观看时间 | — |
-| 需要 Chrome 运行中 | 使用浏览器身份认证（cookie）获取数据 | 先启动 Chrome + MCP bridge |
+**命令：** `python3 scripts/manage.py listplaylists`
 
-### 为什么不由 CLI 直接调 YouTube API
+通过 Chrome MCP bridge 读取 `/feed/playlists` 页面的 `ytInitialData`，提取所有 `LOCKUP_CONTENT_TYPE_PLAYLIST` 类型的 `lockupViewModel` 条目。
 
-YouTube API 需要 `SAPISID` cookie 的 hash 认证。浏览器 cookie 在 Linux 上用 Chrome 加密存储（AES-CBC + keyring），`browser-cookie3` 和 `yt-dlp --cookies-from-browser` 均无法完整解密（17/49 cookies 解密失败）。即使拿到 SAPISID 值，Python `requests` 调 API 仍返回 "Sign in" 页面。**唯一可靠方式：通过浏览器环境执行 fetch() 或读取 ytInitialData。**
+### importplaylist — 导入播放列表
 
-### YouTube UI 注意
+**命令：** `python3 scripts/manage.py importplaylist <ID/名称> [--output <路径>]`
 
-YouTube 2025+ 新 UI 使用 `lockupViewModel` 替代旧的 `videoRenderer` / `playlistRenderer`。新卡片结构：
-
-```javascript
-// 旧格式（playlistRenderer）
-item.playlistRenderer.playlistId
-
-// 新格式（lockupViewModel）
-item.lockupViewModel.contentId  // 内容 ID
-item.lockupViewModel.contentType // "LOCKUP_CONTENT_TYPE_PLAYLIST" / "_VIDEO"
-item.lockupViewModel.metadata.lockupMetadataViewModel.title.content
-```
-
-页面类型也改为 `richGridRenderer` 替代 `sectionListRenderer`，搜索结果等需适配两种结构。具体见 `scripts/manage.py` 中的 `_fetch_videos_via_browser` 实现。
+使用 `yt-dlp --flat-playlist --dump-json` 无认证抓取播放列表视频列表，写入 history.json 和 todolist.txt（或 `--output` 指定文件）。`--output` 仅写纯视频 ID（一行一个），不写入 history.json。名称查找需 Chrome + MCP bridge。

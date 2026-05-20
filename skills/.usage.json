@@ -94,14 +94,14 @@
     "archived_at": null,
     "created_at": "2026-05-11T04:08:36.154242+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-18T10:09:41.822887+00:00",
-    "last_used_at": "2026-05-19T02:07:43.352334+00:00",
-    "last_viewed_at": "2026-05-19T02:07:43.350064+00:00",
-    "patch_count": 13,
+    "last_patched_at": "2026-05-19T12:49:10.289539+00:00",
+    "last_used_at": "2026-05-20T02:00:39.555829+00:00",
+    "last_viewed_at": "2026-05-19T12:48:54.835649+00:00",
+    "patch_count": 17,
     "pinned": false,
     "state": "active",
-    "use_count": 33,
-    "view_count": 22
+    "use_count": 38,
+    "view_count": 26
   },
   "qiaomu-anything-to-notebooklm": {
     "archived_at": null,
@@ -160,13 +160,13 @@
     "created_at": "2026-05-17T05:25:59.571937+00:00",
     "created_by": null,
     "last_patched_at": null,
-    "last_used_at": "2026-05-17T05:25:59.578339+00:00",
-    "last_viewed_at": "2026-05-17T05:25:59.572831+00:00",
+    "last_used_at": "2026-05-20T00:18:37.965155+00:00",
+    "last_viewed_at": "2026-05-20T00:18:37.962546+00:00",
     "patch_count": 0,
     "pinned": false,
     "state": "active",
-    "use_count": 1,
-    "view_count": 1
+    "use_count": 2,
+    "view_count": 2
   },
   "yewtube": {
     "archived_at": null,
@@ -185,14 +185,14 @@
     "archived_at": null,
     "created_at": "2026-05-11T03:38:21.246747+00:00",
     "created_by": null,
-    "last_patched_at": "2026-05-19T05:40:36.012256+00:00",
-    "last_used_at": "2026-05-19T05:40:21.376942+00:00",
-    "last_viewed_at": "2026-05-19T05:40:21.375193+00:00",
-    "patch_count": 46,
+    "last_patched_at": "2026-05-19T12:20:44.074499+00:00",
+    "last_used_at": "2026-05-20T02:00:39.539738+00:00",
+    "last_viewed_at": "2026-05-19T12:48:59.375999+00:00",
+    "patch_count": 49,
     "pinned": false,
     "state": "active",
-    "use_count": 69,
-    "view_count": 57
+    "use_count": 72,
+    "view_count": 59
   },
   "youtube-summary-to-brain-vault": {
     "archived_at": null,

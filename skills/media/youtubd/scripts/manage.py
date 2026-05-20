@@ -537,7 +537,7 @@ def cmd_flush():
            flush --todolist playlist1.txt
     """
     kill_previous_flush()
-    import subprocess as _sp, json as _json, time as _time, os as _os
+    import subprocess as _sp, time as _time, os as _os
 
     # 解析 --todolist 参数
     todo_path = TODO_PATH
@@ -554,115 +554,49 @@ def cmd_flush():
     with open(todo_path) as f:
         lines = [l.strip() for l in f if l.strip()]
 
-    hist = load_hist()
-    VAULT = _os.path.expanduser("~/MyDoc/brain-vault")
-    _os.makedirs(VAULT, exist_ok=True)
+    print(f"📋 待处理: {len(lines)} 个视频")
+    print(f"🔧 使用 process_video.py 处理...")
+    print()
+
+    script_path = SKILL_DIR.parent / "productivity" / "notebooklm-to-brainvault" / "scripts" / "process_video.py"
+    if not script_path.exists():
+        script_path = Path.home() / ".hermes" / "skills" / "productivity" / "notebooklm-to-brainvault" / "scripts" / "process_video.py"
 
     ok = fail = skip = 0
 
-    for vid_url in lines:
-        vid = extract_vid(vid_url)
+    for i, line in enumerate(lines):
+        vid = extract_vid(line)
         if not vid:
             skip += 1
             continue
 
-        info = hist.get(vid, {})
-        title = info.get("title", vid)
-        channel = info.get("channel_name", "unknown")
-        duration = info.get("duration", 0)
-        mins = duration // 60 if duration else 0
+        url = f"https://www.youtube.com/watch?v={vid}"
+        print(f"\n[{i+1}/{len(lines)}] {url}")
 
-        safe_t = re.sub(r'[\\/*?:"<>|]', "", title)[:30]
-        filename = f"{channel}_{safe_t}_总结.md".replace(" ", "_")
-        filepath = _os.path.join(VAULT, filename)
+        r = _sp.run(
+            ["python3", str(script_path), url],
+            capture_output=True, text=True, timeout=600
+        )
+        print(r.stdout)
+        if r.stderr:
+            print(f"  ⚠️  stderr: {r.stderr[:200]}")
 
-        print(f"\n▶ [{vid}] {title[:40]}  |  {channel}  |  {mins}min")
-
-        r = _sp.run(["notebooklm", "create", f"flush-{vid}"],
-                    capture_output=True, text=True, timeout=30)
-        nb_id = ""
-        for ln in r.stdout.split("\n"):
-            if "Created notebook:" in ln:
-                nb_id = ln.split(":")[1].strip().split()[0]
-                break
-        if not nb_id:
-            print("   ❌ 创建 notebook 失败")
+        if r.returncode == 0:
+            ok += 1
+            # 标记 history 中已处理
+            hist = load_hist()
+            if vid in hist:
+                hist[vid]["processed"] = True
+                hist[vid]["note"] = "已总结 → brain-vault"
+                save_hist(hist)
+        else:
             fail += 1
-            continue
 
-        r = _sp.run(["notebooklm", "source add", vid_url, "-n", nb_id],
-                    capture_output=True, text=True, timeout=30)
-        if "Added source" not in r.stdout:
-            print("   ❌ 添加源失败")
-            _sp.run(["notebooklm", "delete", nb_id], capture_output=True, timeout=15)
-            fail += 1
-            continue
-
-        generated = False
-        for attempt in range(1, 17):
-            print(f"   🏗️  生成 (第{attempt}次)...")
-            r = _sp.run(["notebooklm", "generate", "report", "-n", nb_id],
-                        capture_output=True, text=True, timeout=300)
-            out = r.stdout + r.stderr
-
-            if "completed" in out.lower() or "briefing document" in out.lower():
-                aid = ""
-                for ln in r.stdout.split("\n"):
-                    if "artifact wait" in ln or "completed" in ln:
-                        for p in ln.strip().split():
-                            if "-" in p and len(p) > 20:
-                                aid = p; break
-                if not aid:
-                    r2 = _sp.run(["notebooklm", "artifact", "list", "-n", nb_id],
-                                 capture_output=True, text=True, timeout=30)
-                    for ln in r2.stdout.split("\n"):
-                        if "briefing-doc" in ln or "report" in ln.lower():
-                            aid = ln.strip().split()[0]; break
-                if aid:
-                    _sp.run(["notebooklm", "artifact", "wait", aid, "-n", nb_id],
-                            capture_output=True, text=True, timeout=300)
-                    _sp.run(["notebooklm", "download", "report", filepath, "-n", nb_id],
-                            capture_output=True, text=True, timeout=30)
-                    if _os.path.exists(filepath) and _os.path.getsize(filepath) > 100:
-                        print(f"   ✅ {filename}")
-                        generated = True
-                        ok += 1
-                        if vid in hist:
-                            hist[vid]["processed"] = True
-                            hist[vid]["note"] = "已总结 → brain-vault"
-                            save_hist(hist)
-                        break
-
-            if "quota" in out.lower() or "rate limited" in out.lower() or "daily quota" in out:
-                w = [900, 1800][attempt - 1] if attempt <= 2 else 3600
-                print(f"   ⏳ 配额限制，等{w//60}min...")
-                _time.sleep(w)
-            else:
-                print(f"   ⚠️  失败，10秒后重试...")
-                _time.sleep(10)
-
-        if not generated:
-            print(f"   🔄 改用 ask...")
-            r = _sp.run(["notebooklm", "ask",
-                        "请从视频内容生成结构化中文摘要，含核心观点、关键论述和金句摘录。",
-                        "-n", nb_id], capture_output=True, text=True, timeout=120)
-            if r.stdout.strip():
-                with open(filepath, "w") as f:
-                    f.write(r.stdout)
-                print(f"   ✅ ask → {filename}")
-                ok += 1
-                if vid in hist:
-                    hist[vid]["processed"] = True
-                    hist[vid]["note"] = "已总结 → brain-vault (ask)"
-                    save_hist(hist)
-            else:
-                print("   ❌ ask 也失败")
-                fail += 1
-
-        _sp.run(["notebooklm", "delete", nb_id], capture_output=True, timeout=15)
-
+    # 清空 todolist
     open(todo_path, "w").write("")
     print(f"\n📊 flush 完成:  ✅ {ok}  |  ❌ {fail}  |  ⏭ {skip}")
+    if ok > 0:
+        print(f"  文件已清空: {todo_path}")
 
 
 def cmd_gethistory(limit=100):

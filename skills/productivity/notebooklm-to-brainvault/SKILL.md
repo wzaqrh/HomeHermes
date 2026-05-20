@@ -23,6 +23,10 @@ TOKEN_PROTECTION=true
 
 # 阈值（秒）：超过此时长的视频，NotebookLM 失败后不走本地字幕 fallback
 TOKEN_PROTECTION_THRESHOLD=600
+
+# 添加视频源后等待时间（秒），让 NotebookLM 充分处理内容再 generate
+# 默认 300（5 分钟）。设为 0 则不等（不推荐）
+SOURCE_ADD_SLEEP=300
 ```
 
 **读取配置**（Agent 执行时必须先加载）：
@@ -43,7 +47,32 @@ protection = env.get('TOKEN_PROTECTION', 'true').lower() == 'true'
 threshold = int(env.get('TOKEN_PROTECTION_THRESHOLD', '600'))
 ```
 
-## 工作流程
+## 使用脚本（推荐）
+
+技能自带独立 Python 脚本，封装了完整流程：
+
+```bash
+# 单视频处理
+python3 scripts/process_video.py "https://www.youtube.com/watch?v=xxx"
+
+# 使用已有 notebook（共享模式，省配额）
+python3 scripts/process_video.py "https://www.youtube.com/watch?v=xxx" --notebook BATCH_ID
+
+# 强制走本地字幕 fallback
+python3 scripts/process_video.py "https://www.youtube.com/watch?v=xxx" --force-local
+```
+
+`process_video.py` 自动处理：
+1. NotebookLM 创建/复用 notebook
+2. 添加视频源
+3. 生成报告（含 16 次耐心等待重试：15min → 30min → 60min）
+4. 下载到 `~/MyDoc/brain-vault/`
+5. 失败时按 token 保护规则决定是否 fallback
+6. 清理 notebook
+
+`manage.py flush` 已改为遍历 todolist 逐条调用此脚本，不再硬编码 subprocess。
+
+## 工作流程（参考）
 
 ### Step 1: 尝试 NotebookLM 路径（主路径）
 
@@ -117,6 +146,18 @@ ENDNOTE
 - 关键观点和金句
 - 个人评论（若有）
 
+## 外部集成注意事项
+
+### youtubd manage.py flush
+`youtubd` 的 `manage.py flush` 命令直接通过 Python `subprocess.run()` 调用 notebooklm CLI，**没有加载此 skill**。其重试逻辑是硬编码的固定 sleep，远不如 agent + skill 组合可靠：
+- 没有 skill 的 step-by-step 等待指导
+- 无法处理 CSRF token 失效等边缘情况
+- 受到 terminal timeout 限制
+
+批量处理推荐用 cron（agent + notebooklm-to-brainvault）而非 `manage.py flush`。
+
+---
+
 ## 重要约束
 
 ### ⛔ 禁止并行
@@ -127,7 +168,29 @@ NotebookLM CLI 不支持并发操作。多个 agent 同时调用会导致：
 
 **必须串行处理**，一次只处理一个视频。不要用 `delegate_task` 或其他并行机制。
 
-### 批量处理策略：共享 notebook
+### 批量处理策略：共享 notebook（已验证可行）
+处理多个视频时，**不要**每个视频新建一个 notebook。正确做法：
+
+```bash
+# 1. 只创建一次
+notebooklm create "今日份" -n BATCH_ID
+
+# 2. 逐个加源 → generate → download → 删源 → 下一个
+notebooklm source add <URL1> -n BATCH_ID
+sleep 2                           # ⚠️ 必须！add source 后必须等 2 秒
+notebooklm generate report -n BATCH_ID
+# wait → download → delete source
+
+notebooklm source add <URL2> -n BATCH_ID
+sleep 2
+notebooklm generate report -n BATCH_ID
+# ...
+```
+
+关键点：
+- **`sleep 2` 不可省略**：add source 后 NotebookLM 需要时间处理源，不 sleep 直接 generate 会失败
+- **删源命令**：`notebooklm source delete <source_id> -n <nb_id> -y`（`-y` 跳过确认）
+- **已知错误**：`Error: API returned no data for URL: ...` 是 YouTube 侧临时问题（视频编码/地域/反爬），跳过该视频继续即可，不影响其他视频
 处理多个视频时，**不要**每个视频新建一个 notebook。有两个风险：
 1. `notebooklm create` 的 RPC 端点偶尔服务器端故障（`RPC CREATE_NOTEBOOK failed / Invalid argument`）
 2. 大量残留 notebook 需要手动清理
