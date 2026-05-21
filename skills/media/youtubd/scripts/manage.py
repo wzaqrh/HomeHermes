@@ -575,7 +575,7 @@ def cmd_flush():
 
         r = _sp.run(
             ["python3", str(script_path), url],
-            capture_output=True, text=True, timeout=600
+            capture_output=True, text=True, timeout=1800
         )
         print(r.stdout)
         if r.stderr:

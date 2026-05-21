@@ -30,20 +30,14 @@ ENV_PATH = SKILL_DIR / "assets" / ".env"
 # ─── 配置 ────────────────────────────────────
 
 # 读取 .env
-TOKEN_PROTECTION = True
-TOKEN_THRESHOLD = 600  # 10 分钟
-SOURCE_ADD_SLEEP = 300  # 添加源后等待 5 分钟
+SOURCE_ADD_SLEEP = 1200  # 添加源后等待时间（秒），默认 20 分钟
 if ENV_PATH.exists():
     with open(ENV_PATH) as f:
         for line in f:
             line = line.strip()
             if "=" in line and not line.startswith("#"):
                 k, v = line.split("=", 1)
-                if k == "TOKEN_PROTECTION":
-                    TOKEN_PROTECTION = v.lower() == "true"
-                elif k == "TOKEN_PROTECTION_THRESHOLD":
-                    TOKEN_THRESHOLD = int(v)
-                elif k == "SOURCE_ADD_SLEEP":
+                if k == "SOURCE_ADD_SLEEP":
                     SOURCE_ADD_SLEEP = int(v)
 
 
@@ -119,7 +113,7 @@ def nb_create(name):
 def nb_add_source(video_url, nb_id):
     """添加视频源到 notebook"""
     log(f"  📎 添加源")
-    out, err, code = run(["notebooklm", "source", "add", video_url, "-n", nb_id], timeout=30)
+    out, err, code = run(["notebooklm", "source", "add", video_url, "-n", nb_id], timeout=120)
     if code != 0 or "Added source" not in out:
         log(f"  ❌ 添加源失败: {err[:200]}")
         return False
@@ -133,33 +127,18 @@ def nb_generate(nb_id):
     out, err, code = run(["notebooklm", "generate", "report", "-n", nb_id], timeout=300)
     combined = out + err
 
-    if "completed" in combined.lower() or "briefing document" in combined.lower():
-        # 提取 artifact_id
-        aid = ""
-        for line in out.split("\n"):
-            if "artifact wait" in line or "completed" in line:
-                for p in line.strip().split():
-                    if "-" in p and len(p) > 20:
-                        aid = p
-                        break
-        if not aid:
-            out2, _, _ = run(["notebooklm", "artifact", "list", "-n", nb_id], timeout=30)
-            for line in out2.split("\n"):
-                if "briefing-doc" in line or "report" in line.lower():
-                    aid = line.strip().split()[0]
-                    break
-        if aid:
-            log(f"  ✅ 生成完成 (artifact: {aid[:16]}...)")
-            return True, aid
-        else:
-            log(f"  ⚠️  生成完成但未找到 artifact_id")
-            return False, None
-
-    if "quota" in combined.lower() or "rate limited" in combined.lower():
+    # 先检查配额限制（优先级最高）
+    if "quota" in combined.lower() or "rate limited" in combined.lower() or "rate limit" in combined.lower():
         log(f"  ⏳ 配额限制")
         return False, "QUOTA"
 
-    log(f"  ⚠️  生成失败: {combined[:200]}")
+    # 检查是否成功完成
+    if "completed" in combined.lower() or "briefing document" in combined.lower():
+        # 直接用 download 命令获取最新报告（不依赖 artifact_id 解析）
+        log(f"  ✅ 生成完成，尝试下载...")
+        return True, None  # None 表示让调用方直接用 download 最新报告
+
+    log(f"  ⚠️  生成失败: {combined[:300]}")
     return False, None
 
 
@@ -193,87 +172,9 @@ def nb_delete(nb_id):
     run(["notebooklm", "delete", "-n", nb_id, "-y"], timeout=15)
 
 
-# ─── 本地字幕 Fallback ───────────────────────
-
-def local_transcript_fallback(video_url, video_id, meta, output_path):
-    """尝试本地字幕转录 + AI 总结"""
-    duration = get_duration(meta)
-    log(f"  📝 尝试本地字幕 fallback")
-
-    # Token 保护检查
-    if TOKEN_PROTECTION and duration > TOKEN_THRESHOLD:
-        log(f"  ⛔ token保护: {duration//60}min > {TOKEN_THRESHOLD//60}min，跳过")
-        return False
-
-    # 获取字幕
-    try:
-        r = subprocess.run(
-            ["yt-dlp", "--write-auto-sub", "--sub-lang", "zh-Hans,en",
-             "--skip-download", "-o", f"/tmp/nb_fallback_{video_id}", video_url],
-            capture_output=True, text=True, timeout=60
-        )
-        # 找字幕文件
-        import glob
-        subs = glob.glob(f"/tmp/nb_fallback_{video_id}*.vtt") + \
-               glob.glob(f"/tmp/nb_fallback_{video_id}*.srt") + \
-               glob.glob(f"/tmp/nb_fallback_{video_id}*.ass")
-        if not subs:
-            log(f"  ❌ 无可用字幕")
-            return False
-
-        # 简单提取字幕文本
-        transcript = ""
-        with open(subs[0]) as f:
-            text = f.read()
-            # 去除时间戳等 VTT 格式
-            text = re.sub(r'^\d{2}:\d{2}.*$', '', text, flags=re.MULTILINE)
-            text = re.sub(r'<[^>]+>', '', text)
-            text = re.sub(r'\n{3,}', '\n\n', text)
-            transcript = text.strip()
-
-        if not transcript:
-            log(f"  ❌ 字幕内容为空")
-            return False
-
-        # 用本地 AI 总结（用 notebooklm ask 替代本地 LLM）
-        # 创建一个临时 notebook 来总结字幕
-        nb_name = f"local-{video_id}"
-        nb_id = nb_create(nb_name)
-        if not nb_id:
-            log(f"  ❌ 无法创建 notebook 做本地总结")
-            return False
-
-        # 把字幕文本写入临时文件并添加为源
-        tmp_file = f"/tmp/nb_transcript_{video_id}.txt"
-        with open(tmp_file, "w") as f:
-            f.write(transcript)
-
-        out, err, code = run(["notebooklm", "source", "add", tmp_file, "-n", nb_id], timeout=30)
-        if code != 0 or "Added source" not in out:
-            log(f"  ❌ 添加字幕源失败")
-            nb_delete(nb_id)
-            return False
-
-        # 用 ask 总结
-        result = nb_ask(nb_id)
-        if result:
-            with open(output_path, "w") as f:
-                f.write(result)
-            log(f"  ✅ 本地 fallback 完成 -> {output_path.name}")
-            nb_delete(nb_id)
-            return True
-
-        nb_delete(nb_id)
-        return False
-
-    except Exception as e:
-        log(f"  ❌ fallback 出错: {e}")
-        return False
-
-
 # ─── 主流程 ──────────────────────────────────
 
-def process_video(video_url, shared_nb_id=None, force_local=False):
+def process_video(video_url, shared_nb_id=None):
     """处理单个视频的完整流程"""
     video_id = extract_vid(video_url)
     if not video_id:
@@ -308,10 +209,6 @@ def process_video(video_url, shared_nb_id=None, force_local=False):
 
     VAULT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 强制走本地
-    if force_local:
-        return local_transcript_fallback(video_url, video_id, meta, output_path)
-
     # ─── NotebookLM 主路径 ───
     using_shared = False
     if shared_nb_id:
@@ -321,14 +218,15 @@ def process_video(video_url, shared_nb_id=None, force_local=False):
     else:
         nb_id = nb_create(f"nb-{video_id}")
         if not nb_id:
-            log(f"  ⚠️  创建 notebook 失败，尝试本地 fallback")
-            return local_transcript_fallback(video_url, video_id, meta, output_path)
+            log(f"  ❌ 创建 notebook 失败，跳过")
+            return False
 
     # 添加源
     if not nb_add_source(video_url, nb_id):
         if not using_shared:
             nb_delete(nb_id)
-        return local_transcript_fallback(video_url, video_id, meta, output_path)
+        log(f"  ❌ NotebookLM 无法处理此视频，跳过")
+        return False
 
     # 等待 NotebookLM 处理源，否则 generate 可能失败
     sleep_sec = SOURCE_ADD_SLEEP
@@ -342,8 +240,15 @@ def process_video(video_url, shared_nb_id=None, force_local=False):
     generated = False
     for attempt in range(1, 17):
         success, aid = nb_generate(nb_id)
-        if success and aid:
-            # 等待完成并下载
+        if success and aid is None:
+            # 生成完成，直接下载最新报告
+            if nb_download(output_path, nb_id):
+                generated = True
+                break
+            else:
+                log(f"  ⚠️  下载失败")
+        elif success and aid:
+            # 有 artifact_id，等待后下载
             if nb_wait_artifact(aid, nb_id):
                 if nb_download(output_path, nb_id):
                     generated = True
@@ -371,8 +276,8 @@ def process_video(video_url, shared_nb_id=None, force_local=False):
             log(f"  ✅ ask -> {output_path.name}")
             generated = True
         else:
-            log(f"  ❌ ask 也失败，尝试本地 fallback")
-            generated = local_transcript_fallback(video_url, video_id, meta, output_path)
+            log(f"  ❌ ask 也失败，跳过")
+            generated = False
 
     if not using_shared:
         nb_delete(nb_id)
@@ -386,8 +291,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="NotebookLM → Brain-Vault 视频处理")
     parser.add_argument("url", help="YouTube 视频 URL 或 video ID")
     parser.add_argument("--notebook", help="使用已有 notebook（不新建）")
-    parser.add_argument("--force-local", action="store_true", help="强制走本地字幕 fallback")
     args = parser.parse_args()
 
-    success = process_video(args.url, shared_nb_id=args.notebook, force_local=args.force_local)
+    success = process_video(args.url, shared_nb_id=args.notebook)
     sys.exit(0 if success else 1)

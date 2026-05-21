@@ -231,13 +231,13 @@ python3 ~/.hermes/skills/media/youtubd/scripts/manage.py cron
 
 | 特性 | cron（Hermes agent 驱动） | manage.py flush |
 |------|--------------------------|-----------------|
-| 加载 skill | `youtubd` + `notebooklm-to-brainvault` | 纯 Python subprocess，无 skill |
-| 重试策略 | 按 skill 指南分步等待 | 固定 sleep 循环 |
-| 配额等待 | 15/30/60min 步进 | 同上（硬编码） |
-| 执行主体 | Hermes agent | Python subprocess |
-| 可靠性 | 高（agent 根据上下文调整） | 中（硬编码逻辑） |
+| 加载 skill | `youtubd` + `notebooklm-to-brainvault` | 无（纯 Python subprocess） |
+| 处理引擎 | agent 按 skill 指南逐步骤执行 | 调用 `process_video.py` 脚本 |
+| 重试策略 | skill 指导 step-by-step | process_video.py 内置 16 次重试 |
+| 配额等待 | 15/30/60min 步进 | process_video.py 内置同策略 |
+| 外部集成 | 需 Hermes agent | 独立可运行，`manage.py flush` 逐条调用 |
 
-**注意：** `manage.py flush` 直接调用 `notebooklm` CLI subprocess，没有 `notebooklm-to-brainvault` skill 的完整智能。批量处理建议用 cron 驱动。
+`manage.py flush` 已改为逐条调用 `process_video.py`（notebooklm-to-brainvault 技能的独立脚本），不再硬编码 notebooklm CLI subprocess。该脚本封装了完整流程：创建 notebook → 加源 → 等 SOURCE_ADD_SLEEP 秒 → 耐心生成 → 下载 → 清理 → 失败时直接跳过（不走本地字幕 fallback）。
 
 ---
 
